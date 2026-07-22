@@ -2,7 +2,7 @@
 .build/
 DerivedData/
 *.xcworkspace
-*.xcodeproj
+# 注意：Example 的 .xcodeproj 需入库（工程文件）；Pods/ 内的 xcodeproj 已随 Pods/ 被忽略。
 Pods/
 Podfile.lock
 Example/Pods/
