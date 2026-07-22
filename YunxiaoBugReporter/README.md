@@ -46,6 +46,25 @@ pod install
 > pod 'YunxiaoBugReporter', '~> 0.1.0'
 > ```
 
+### 运行自带 Example
+
+仓库内 `Example/` 是一个最小可运行的演示 App（纯 `UIKit` + 代码布局，无 Storyboard）：
+
+```bash
+cd Example
+pod install
+open YunxiaoBugReporterExample.xcworkspace   # 必须用 workspace 打开，而非 .xcodeproj
+```
+
+- 在 `Example/YunxiaoBugReporterExample/ViewController.swift` 的 `configureReporter()` 中，把 `<YOUR_ORGANIZATION_ID>` / `<YOUR_PROJECT_ID>` / `<YOUR_ASSIGNEE_USER_ID>` 替换为真实云效参数；
+- Token 通过环境变量注入，避免硬编码进仓库：
+  ```bash
+  YUNXIAO_TOKEN=<your-token> xcodebuild \
+    -workspace YunxiaoBugReporterExample.xcworkspace \
+    -scheme YunxiaoBugReporterExample -sdk iphonesimulator build
+  ```
+- `Example/Pods/` 与 `*.xcworkspace` 已纳入 `.gitignore`；仅 `YunxiaoBugReporterExample.xcodeproj` 入库。
+
 ---
 
 ## 3. 初始化配置
