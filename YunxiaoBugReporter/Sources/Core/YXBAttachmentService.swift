@@ -1,7 +1,7 @@
 import Foundation
 
 /// 附件服务：以 multipart/form-data 上传附件，支持有限并发。
-struct YXBAttachmentService {
+struct YXBAttachmentService: Sendable {
     let config: YXBConfiguration
     let transport: any YXBTransport
     private let builder: YXBRequestBuilder
@@ -21,15 +21,30 @@ struct YXBAttachmentService {
     func uploadAll(_ attachments: [YXBAttachment], workitemID: String, token: String) async -> [YXBAttachmentResult] {
         guard !attachments.isEmpty else { return [] }
 
+        // 将 Sendable 成员提升为局部常量，避免任务组闭包捕获 `self`，
+        // 从而消除 Swift 6 下隐式 isolation() 捕获带来的可用性报错。
+        let config = self.config
+        let transport = self.transport
+        let builder = self.builder
+
         var results = Array<YXBAttachmentResult?>(repeating: nil, count: attachments.count)
         let batchSize = max(1, min(config.maximumConcurrentUploads, YXBConstants.maxConcurrentUploadsCap))
 
         for batchStart in stride(from: 0, to: attachments.count, by: batchSize) {
             let batchEnd = min(batchStart + batchSize, attachments.count)
-            await withTaskGroup(of: (Int, YXBAttachmentResult).self) { group in
+            await withTaskGroup(of: (Int, YXBAttachmentResult).self, isolation: nil) { group in
                 for index in batchStart..<batchEnd {
+                    let attachment = attachments[index]
                     group.addTask {
-                        let result = await self.uploadOne(attachments[index], index: index, workitemID: workitemID, token: token)
+                        let result = await Self.uploadOne(
+                            attachment: attachment,
+                            index: index,
+                            workitemID: workitemID,
+                            token: token,
+                            config: config,
+                            transport: transport,
+                            builder: builder
+                        )
                         return (index, result)
                     }
                 }
@@ -43,7 +58,15 @@ struct YXBAttachmentService {
     }
 
     /// 上传单个附件。任何异常都会被捕获并转换为失败的 `YXBAttachmentResult`，不向上抛出。
-    private func uploadOne(_ attachment: YXBAttachment, index: Int, workitemID: String, token: String) async -> YXBAttachmentResult {
+    private static func uploadOne(
+        attachment: YXBAttachment,
+        index: Int,
+        workitemID: String,
+        token: String,
+        config: YXBConfiguration,
+        transport: any YXBTransport,
+        builder: YXBRequestBuilder
+    ) async -> YXBAttachmentResult {
         do {
             try YXBValidation.validateAttachment(attachment, maxBytes: YXBConstants.maxAttachmentBytes)
             let (body, boundary) = YXBMultipartBuilder.build(attachment: attachment)

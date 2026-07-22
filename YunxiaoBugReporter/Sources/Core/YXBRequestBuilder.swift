@@ -2,7 +2,7 @@ import Foundation
 
 /// 请求构造器。负责把 endpoint、config、token、body 组合成 `URLRequest`，
 /// 并统一注入 `x-yunxiao-token` 头。
-struct YXBRequestBuilder {
+struct YXBRequestBuilder: Sendable {
     /// 通用构造方法。
     /// - Parameters:
     ///   - endpoint: 端点。
