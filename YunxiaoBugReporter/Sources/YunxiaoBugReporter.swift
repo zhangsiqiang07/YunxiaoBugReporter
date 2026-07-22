@@ -11,6 +11,8 @@ import Foundation
 ///
 /// 设计要点：
 /// - SDK 不持久化 Token；每次提交通过 `YXBConfiguration.tokenProvider` 获取；
+/// - 配置 `YXBConfiguration.cache` 后可缓存「自动解析的工作项类型」与「Token」，
+///   减少云效 API 与 `tokenProvider` 的重复调用；缓存读取失败静默降级走网络；
 /// - 只要工作项创建成功，即使部分附件失败也返回 `YXBSubmitResult`（状态为 `.partialSuccess`），
 ///   而不是抛错；
 /// - 工作项创建失败或配置/报告不合法时才会 `throw`。
@@ -124,8 +126,18 @@ public final class YunxiaoBugReporter {
     // MARK: - 步骤
 
     private func fetchToken(config: YXBConfiguration, logger: (any YXBLogger)?) async throws -> String {
+        // 命中 Token 缓存：在 TTL 内直接复用，避免重复调用 tokenProvider。
+        if config.tokenCacheTTL > 0, let cache = config.cache,
+           let cached = await cache.string(forKey: Self.tokenCacheKey) {
+            logger?.log(level: .debug, message: "[YunxiaoBugReporter] 命中 Token 缓存")
+            return cached
+        }
         do {
-            return try await config.tokenProvider()
+            let token = try await config.tokenProvider()
+            if config.tokenCacheTTL > 0, let cache = config.cache {
+                await cache.setString(token, forKey: Self.tokenCacheKey, ttl: config.tokenCacheTTL)
+            }
+            return token
         } catch {
             logger?.log(level: .error, message: "[YunxiaoBugReporter] 获取 Token 失败")
             throw YXBError.tokenUnavailable(String(describing: error))
@@ -139,16 +151,40 @@ public final class YunxiaoBugReporter {
         token: String,
         logger: (any YXBLogger)?
     ) async throws -> String {
+        // 显式指定类型时直接返回，不参与自动解析与缓存。
         if let explicit = config.workitemTypeID, !explicit.isEmpty {
             return explicit
         }
+
+        // 命中工作项类型缓存：按 (edition, organizationID, projectID) 区分项目。
+        let key = workitemTypeCacheKey(config: config)
+        if let cache = config.cache,
+           let cached = await cache.string(forKey: key) {
+            logger?.log(level: .debug, message: "[YunxiaoBugReporter] 命中工作项类型缓存: \(cached)")
+            return cached
+        }
+
         let types = try await service.fetchBugTypes(token: token)
         guard let selected = YXBWorkitemTypeSelector.select(from: types) else {
             logger?.log(level: .error, message: "[YunxiaoBugReporter] 未找到可用的 Bug 工作项类型")
             throw YXBError.workitemTypeNotFound
         }
+        if let cache = config.cache {
+            await cache.setString(selected.id, forKey: key, ttl: config.workitemTypeCacheTTL)
+        }
         logger?.log(level: .debug, message: "[YunxiaoBugReporter] 自动选择工作项类型: \(selected.id)")
         return selected.id
+    }
+
+    // MARK: - 缓存键
+
+    /// Token 缓存键（全局唯一，与项目无关）。
+    private static let tokenCacheKey = "token"
+
+    /// 工作项类型缓存键，按版本/组织/项目区分。
+    private func workitemTypeCacheKey(config: YXBConfiguration) -> String {
+        let org = config.organizationID ?? "none"
+        return "workitemType.\(config.edition).\(org).\(config.projectID)"
     }
 
     private func createWorkitem(

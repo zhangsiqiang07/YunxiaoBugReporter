@@ -198,4 +198,106 @@ final class YunxiaoBugReporterSubmitTests: XCTestCase {
             XCTFail("错误类型不符: \(error)")
         }
     }
+
+    // MARK: - 21 工作项类型缓存命中，跳过第二次 API 拉取
+
+    /// 不显式指定 workitemTypeID 时，首次提交会拉取 Bug 类型并写入缓存；
+    /// 第二次提交应直接命中缓存，不再调用 workitemTypes 接口。
+    func testWorkitemTypeCacheSkipsSecondFetch() async throws {
+        let cache = YXBInMemoryCache()
+        let config = YXBConfiguration(
+            domain: "https://yx.example.com",
+            edition: .standard,
+            organizationID: "org-1",
+            projectID: "proj-1",
+            workitemTypeID: nil, // 触发自动解析 + 缓存
+            assignedTo: "user-1",
+            tokenProvider: { "test-token" },
+            cache: cache
+        )
+        let mock = YXBMockTransport(handler: { req in
+            if (req.url?.absoluteString ?? "").contains("/workitemTypes") {
+                return (YXBTestHelpers.typesResponse, 200)
+            }
+            return (YXBTestHelpers.createResponse, 200)
+        })
+        let reporter = try YunxiaoBugReporter(configuration: config, transport: mock)
+
+        _ = try await reporter.submit(YXBBugReport(title: "t1", description: "d1"))
+        _ = try await reporter.submit(YXBBugReport(title: "t2", description: "d2"))
+
+        let typesCalls = mock.recordedRequests.filter { ($0.url?.absoluteString ?? "").contains("/workitemTypes") }.count
+        XCTAssertEqual(typesCalls, 1, "工作项类型应仅拉取一次（第二次命中缓存）")
+        // 创建工作项每次都会调用，应为 2。
+        XCTAssertEqual(mock.recordedRequests.filter { ($0.url?.absoluteString ?? "").contains("/workitems") && (reqPOST($0)) }.count, 2)
+    }
+
+    // MARK: - 22 Token 缓存命中，跳过第二次 tokenProvider 调用
+
+    func testTokenCacheSkipsSecondProviderCall() async throws {
+        let spy = TokenProviderSpy()
+        let config = YXBConfiguration(
+            domain: "https://yx.example.com",
+            edition: .standard,
+            organizationID: "org-1",
+            projectID: "proj-1",
+            workitemTypeID: "wt-1",
+            assignedTo: "user-1",
+            tokenProvider: { await spy.next() },
+            cache: YXBInMemoryCache()
+        )
+        let mock = YXBMockTransport(responses: [(YXBTestHelpers.createResponse, 200)])
+        let reporter = try YunxiaoBugReporter(configuration: config, transport: mock)
+
+        _ = try await reporter.submit(YXBBugReport(title: "t1", description: "d1"))
+        _ = try await reporter.submit(YXBBugReport(title: "t2", description: "d2"))
+
+        let calls = await spy.calls
+        XCTAssertEqual(calls, 1, "TTL 内 Token 应仅由 provider 提供一次（第二次命中缓存）")
+    }
+
+    // MARK: - 23 未配置缓存时，每次都重新拉取 / 取 Token
+
+    func testNoCacheRefetchesEachTime() async throws {
+        let spy = TokenProviderSpy()
+        let config = YXBConfiguration(
+            domain: "https://yx.example.com",
+            edition: .standard,
+            organizationID: "org-1",
+            projectID: "proj-1",
+            workitemTypeID: nil,
+            assignedTo: "user-1",
+            tokenProvider: { await spy.next() }
+            // cache 默认 nil → 关闭缓存
+        )
+        let mock = YXBMockTransport(handler: { req in
+            if (req.url?.absoluteString ?? "").contains("/workitemTypes") {
+                return (YXBTestHelpers.typesResponse, 200)
+            }
+            return (YXBTestHelpers.createResponse, 200)
+        })
+        let reporter = try YunxiaoBugReporter(configuration: config, transport: mock)
+
+        _ = try await reporter.submit(YXBBugReport(title: "t1", description: "d1"))
+        _ = try await reporter.submit(YXBBugReport(title: "t2", description: "d2"))
+
+        XCTAssertEqual(mock.recordedRequests.filter { ($0.url?.absoluteString ?? "").contains("/workitemTypes") }.count, 2,
+                       "关闭缓存时应每次拉取工作项类型")
+        let calls = await spy.calls
+        XCTAssertEqual(calls, 2, "关闭缓存时每次都调用 tokenProvider")
+    }
+}
+
+/// 统计 tokenProvider 调用次数的 Sendable 辅助（测试用）。
+private actor TokenProviderSpy {
+    private(set) var calls = 0
+    func next() -> String {
+        calls += 1
+        return "test-token"
+    }
+}
+
+/// 判断请求是否为 POST（用于断言创建工作项）。
+private func reqPOST(_ request: URLRequest) -> Bool {
+    (request.httpMethod ?? "GET").uppercased() == "POST"
 }

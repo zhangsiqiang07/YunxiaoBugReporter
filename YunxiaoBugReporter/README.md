@@ -96,6 +96,49 @@ do {
 
 `tokenProvider` 是一个 `@Sendable () async throws -> String` 闭包，SDK 不会保存 Token。
 
+### 3.1 结果缓存（可选）
+
+默认**不缓存**。配置 `YXBConfiguration.cache` 后，SDK 会缓存两类派生结果，以减少对云效 API 与 `tokenProvider` 的重复调用：
+
+- **工作项类型**：当未显式指定 `workitemTypeID` 时，首次提交会查询 Bug 类型并自动选中，结果按 `(edition, organizationID, projectID)` 作为键写入缓存，TTL 由 `workitemTypeCacheTTL`（默认 3600 秒）控制；后续提交直接命中缓存，不再调用 `workitemTypes` 接口。
+- **Token**：在 `tokenCacheTTL > 0`（默认 300 秒）且 `cache` 非 `nil` 时，Token 写入缓存，TTL 内重复提交复用，不再调用 `tokenProvider`。
+
+缓存后端需遵循 `YXBCache` 协议（`Sendable`、`async` 且非 `throws`，读取失败静默降级为主流程）。SDK 内置两种实现：
+
+```swift
+import YunxiaoBugReporter
+
+// 方案 A：内存缓存（进程级，推荐用于缓存 Token，明文不落盘）
+let config = YXBConfiguration(
+    domain: "...",
+    edition: .standard,
+    organizationID: "...",
+    projectID: "...",
+    assignedTo: "...",
+    tokenProvider: { try await loadToken() },
+    cache: YXBInMemoryCache(),   // 启用缓存
+    workitemTypeCacheTTL: 3600,  // 工作项类型缓存 1 小时
+    tokenCacheTTL: 300           // Token 缓存 5 分钟（<=0 则不缓存 Token）
+)
+
+// 方案 B：UserDefaults 缓存（可跨启动复用，适合缓存非敏感的工作项类型）
+let config2 = YXBConfiguration(
+    domain: "...",
+    edition: .standard,
+    organizationID: "...",
+    projectID: "...",
+    assignedTo: "...",
+    tokenProvider: { try await loadToken() },
+    cache: YXBUserDefaultsCache(suiteName: "com.yourapp.yunxiao"),
+    workitemTypeCacheTTL: 86400,
+    tokenCacheTTL: 0             // 不缓存 Token（避免明文落盘）
+)
+```
+
+安全提示：Token 是敏感凭证。**不建议**将 Token 缓存到 `YXBUserDefaultsCache`（明文落盘，存在越狱/备份提取风险）。缓存 Token 时请使用 `YXBInMemoryCache`；若必须采用 `UserDefaults` 后端，请确保运行环境受控（如企业内部托管设备），且不要写入高权限 Token。工作项类型属非敏感派生数据，适合持久化。
+
+自定义后端只需实现 `YXBCache` 协议（例如 Keychain、文件、LRU 内存等），即可注入 `cache` 字段。
+
 ---
 
 ## 4. 提交纯文本 Bug
