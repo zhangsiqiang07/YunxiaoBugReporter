@@ -1,0 +1,241 @@
+# YunxiaoBugReporter
+
+轻量级 iOS SDK（Swift 5.9，最低 iOS 15.0），用于将宿主 App 提供的 Bug 信息、截图和日志附件上报到**阿里云效（云效）Projex** 的 Bug 工作项。
+
+> 适用场景：内部工具、Debug 构建或受控分发场景的直连上报。
+> ⚠️ **不建议把个人访问令牌硬编码在正式 App 中**。生产环境建议后续通过内部 Gateway 中转上报（见「Token 安全警告」与「版本规划」）。
+
+---
+
+## 1. 功能介绍
+
+- 查询项目下的 Bug 工作项类型，并在未显式配置 `workitemTypeID` 时自动选择：
+  - `category` 为 Bug 且 `enabled` 为 true；
+  - 优先 `default` 为 true 的类型；
+  - 若没有默认类型，选择第一个启用的类型。
+- 创建云效 Bug 工作项。
+- 将宿主传入的图片、文本、日志或其他文件以 `multipart/form-data` 上传为工作项附件。
+- 返回 Bug ID、附件上传结果与整体提交状态；附件部分失败时返回 `partialSuccess` 而非抛错。
+- 网络层基于 `URLSession` + `async/await`，**不依赖 Alamofire**，除 `Foundation` 外不引入其他系统框架。
+- **SDK 本身不包含任何 UI**，也不负责截图采集、截图标注、Crash 捕获或网络日志采集——这些数据由宿主 App 提供。
+
+所有公开类型使用 `YXB` 前缀，统一位于 `YunxiaoBugReporter` Module。
+
+---
+
+## 2. CocoaPods 安装
+
+```ruby
+# Podfile
+platform :ios, '15.0'
+use_frameworks!
+
+target 'YourApp' do
+  pod 'YunxiaoBugReporter', :path => '../YunxiaoBugReporter'
+end
+```
+
+然后执行：
+
+```bash
+pod install
+```
+
+> 本地开发使用 `:path` 方式即可。发布时改用版本 tag：
+> ```ruby
+> pod 'YunxiaoBugReporter', '~> 0.1.0'
+> ```
+
+---
+
+## 3. 初始化配置
+
+```swift
+import YunxiaoBugReporter
+
+let reporter = YunxiaoBugReporter()
+
+let config = YXBConfiguration(
+    domain: "https://your-yunxiao-domain.com",   // 必须为 http/https
+    edition: .standard,                           // .standard 或 .region
+    organizationID: "your-organization-id",       // 中心版必填
+    projectID: "your-project-id",
+    assignedTo: "assignee-user-id",
+    tokenProvider: {
+        // SDK 不持久化 Token，每次需要时才调用该闭包
+        try await loadTokenFromSecureStore()
+    }
+)
+
+do {
+    try reporter.configure(config)
+} catch {
+    // 配置不合法（如 domain 非 http(s)、中心版缺少 organizationID 等）
+    print("配置失败: \(error)")
+}
+```
+
+`tokenProvider` 是一个 `@Sendable () async throws -> String` 闭包，SDK 不会保存 Token。
+
+---
+
+## 4. 提交纯文本 Bug
+
+```swift
+let report = YXBBugReport(
+    title: "点击登录按钮崩溃",
+    description: "在 iPhone 15 Pro / iOS 17 上复现率 100%",
+    format: .plainText,                // 或 .markdown
+    customFields: ["priority": "P0"],
+    labels: ["crash", "login"]
+)
+
+Task {
+    do {
+        let result = try await reporter.submit(report)
+        print("workitemID = \(result.workitemID), status = \(result.status)")
+    } catch {
+        print("提交失败: \(error)")
+    }
+}
+```
+
+---
+
+## 5. 提交带截图 Bug
+
+SDK 不依赖 `UIImage`，只接收 `Data`。宿主负责把截图转成 `Data`：
+
+```swift
+// 假设 image 为 UIImage
+guard let pngData = image.pngData() else { return }
+
+let attachment = YXBAttachment(
+    data: pngData,
+    fileName: "screenshot.png",
+    mimeType: "image/png"
+)
+
+let report = YXBBugReport(
+    title: "支付页白屏",
+    description: "见附件截图",
+    attachments: [attachment]
+)
+
+let result = try await reporter.submit(report)
+```
+
+---
+
+## 6. 中心版与 Region 版区别
+
+通过 `YXBConfiguration.Edition` 区分，URL 构造不同：
+
+| 能力 | 中心版 `.standard` | Region 版 `.region` |
+| --- | --- | --- |
+| 组织 ID | **必填** | 忽略 |
+| 查询类型 | `/oapi/v1/projex/organizations/{org}/projects/{proj}/workitemTypes?category=Bug` | `/oapi/v1/projex/projects/{proj}/workitemTypes?category=Bug` |
+| 创建工作项 | `/oapi/v1/projex/organizations/{org}/workitems` | `/oapi/v1/projex/workitems` |
+| 上传附件 | `/oapi/v1/projex/organizations/{org}/workitems/{id}/attachments` | `/oapi/v1/projex/workitems/{id}/attachments` |
+
+所有请求通过 Header `x-yunxiao-token` 传递 Token；创建工作项使用 `application/json`，附件上传使用 `multipart/form-data`（字段名固定为 `file`，由 SDK 生成随机 boundary）。
+
+---
+
+## 7. 自定义字段使用方式
+
+把自定义字段放入 `YXBBugReport.customFields`（键为云效字段 Key，值为字符串），SDK 会编码为请求体的 `customFieldValues`：
+
+```swift
+let report = YXBBugReport(
+    title: "列表滑动卡顿",
+    description: "帧率低于 30fps",
+    customFields: [
+        "module": "feed",
+        "priority": "P1",
+        "env": "production"
+    ]
+)
+```
+
+> 字段 Key 需与你在云效工作项类型中定义的自定义字段 Key 一致。
+
+---
+
+## 8. Token 安全警告
+
+- **不要**将个人访问令牌硬编码进源码或打包进正式 App。
+- 直连云效适合**内部、Debug 或受控分发**场景。
+- 建议通过 `tokenProvider` 从安全存储（Keychain / 内部服务）动态获取 Token，SDK 不负责持久化。
+- **生产环境建议后续通过内部 Gateway 上报**：由 Gateway 持有云效凭据，App 只与自有后端通信，避免令牌下发到客户端。
+- SDK 的日志与错误信息**不会**输出 Token、完整附件二进制或含用户隐私的完整请求体。
+
+---
+
+## 9. 错误处理
+
+`submit` 仅在以下情况抛错（`YXBError`）；只要工作项创建成功，即使附件失败也会返回结果（见第 10 节）：
+
+- `.notConfigured`：未配置。
+- `.invalidConfiguration(String)`：配置校验失败。
+- `.invalidReport(String)`：报告校验失败（如 title 为空、附件为空/缺字段）。
+- `.tokenUnavailable(String)`：`tokenProvider` 抛错。
+- `.workitemTypeNotFound`：未找到可用的 Bug 类型。
+- `.workitemCreationFailed(String)`：创建工作项失败。
+- `.httpError(statusCode:message:)`：HTTP 非 2xx（含解析出的 message/code/requestId）。
+- `.decodingFailed(String)` / `.invalidResponse` / `.underlying(String)` / `.attachmentTooLarge(fileName:limit:)`。
+
+> 超过大小限制（默认 20 MB）的附件会触发报告级校验失败（`attachmentTooLarge`），在创建工作项之前即抛错；运行时上传失败（网络/服务端）才会进入 `partialSuccess` 逻辑。
+
+---
+
+## 10. 部分附件失败的处理方式
+
+当工作项创建成功后，SDK 会并发上传所有附件（并发数由 `maximumConcurrentUploads` 控制，默认 2，范围 1...4）：
+
+- 单个附件上传失败**不会影响**其他附件；
+- 返回结果按输入附件顺序排列；
+- 只要有任一附件失败，整体状态为 `.partialSuccess`；
+- **工作项不会被重复创建**（创建成功后才会上传附件）。
+
+```swift
+let result = try await reporter.submit(report)
+switch result.status {
+case .success:
+    print("全部成功")
+case .partialSuccess:
+    print("工作项已创建，但 \(result.failedAttachments.count) 个附件失败")
+    for failed in result.failedAttachments {
+        print("失败附件: \(failed.fileName), 原因: \(String(describing: failed.error))")
+    }
+}
+```
+
+---
+
+## 11. 当前不包含的能力
+
+首期 deliberately 不包含以下内容，由宿主 App 负责：
+
+- 截图采集（系统相册 / 屏幕截图）；
+- 截图标注 / 涂鸦；
+- Crash 捕获与符号化；
+- 网络日志自动采集；
+- 任何 UI 组件。
+
+---
+
+## 12. 版本规划
+
+- **0.1.0（当前）**：核心上报链路、中心版/Region 版、Mock 可测、CocoaPods 集成、基础错误与日志。
+- **后续**：
+  - 支持通过内部 Gateway 上报（推荐用于生产环境，避免客户端持有令牌）；
+  - 工作项类型字段读取与自定义字段 UI 辅助；
+  - 更细粒度的重试与断点续传策略；
+  - 可选的内置日志采集适配层（仍由宿主触发）。
+
+---
+
+## 许可证
+
+MIT

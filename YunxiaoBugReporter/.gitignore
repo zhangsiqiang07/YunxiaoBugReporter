@@ -1,0 +1,19 @@
+# Build artifacts
+.build/
+DerivedData/
+*.xcworkspace
+*.xcodeproj
+Pods/
+Podfile.lock
+Example/Pods/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+
+# Never commit real tokens or secrets
+*.env
+.env.*

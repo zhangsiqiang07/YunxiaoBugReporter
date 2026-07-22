@@ -1,0 +1,7 @@
+platform :ios, '15.0'
+use_frameworks!
+
+target 'YunxiaoBugReporterExample' do
+  # 本地 path 方式集成，指向 YunxiaoBugReporter.podspec 所在目录。
+  pod 'YunxiaoBugReporter', :path => '../'
+end
