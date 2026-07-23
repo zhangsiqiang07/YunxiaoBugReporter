@@ -1,12 +1,12 @@
 import Foundation
 
-/// 工作项类型模型（云效返回）。
-struct YXBWorkitemType: Sendable, Decodable {
-    let id: String
-    let name: String?
-    let category: String?
-    let enabled: Bool
-    let isDefault: Bool
+/// 工作项类型模型（云效返回）。公开以便宿主构建类型选择 UI。
+public struct YXBWorkitemType: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let name: String?
+    public let category: String?
+    public let enabled: Bool
+    public let isDefault: Bool
 
     private enum CodingKeys: String, CodingKey {
         case id
@@ -17,7 +17,7 @@ struct YXBWorkitemType: Sendable, Decodable {
         case defaultType = "defaultType"
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
         name = try container.decodeIfPresent(String.self, forKey: .name)
@@ -91,15 +91,59 @@ struct YXBAttachmentCreateResponse: Decodable {
     }
 }
 
-/// 创建工作项请求体。使用默认编码（camelCase），字段名与云效接口对齐。
+/// 创建工作项请求体。字段名严格对齐云效 CreateWorkitem 官方文档（中心版 / Region 版通用）。
+///
+/// 必填：`spaceId`（项目即空间，等于配置中的 `projectID`）、`subject`、`workitemTypeId`、`assignedTo`。
+/// 可选：`description`、`descriptionFormat`、`customFieldValues`、`labels` 等。
 struct YXBCreateWorkitemBody: Encodable {
-    let projectId: String
-    let organizationId: String?
-    let workitemType: String
-    let title: String
+    let spaceId: String
+    let workitemTypeId: String
+    let subject: String
+    let assignedTo: String
     let description: String
     let descriptionFormat: String
-    let assignedTo: String
     let customFieldValues: [String: String]
     let labels: [String]
+}
+
+/// 项目成员模型（云效返回）。公开以便宿主构建负责人选择 UI。
+///
+/// 云效不同版本/接口的字段命名不一致，这里对 `id` 与 `name` 做多键容错解析，
+/// 依次尝试常见字段名，保证在 `projex` 成员接口下都能取到可用标识。
+public struct YXBMember: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let name: String
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        let idCandidates = ["id", "identifier", "userId", "accountId", "userIdentifier"]
+        id = idCandidates.compactMap { key in
+            try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
+        }.first ?? ""
+        let nameCandidates = ["name", "displayName", "nickName", "realName", "displayNickName"]
+        name = nameCandidates.compactMap { key in
+            try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
+        }.first ?? id
+    }
+}
+
+/// 项目成员列表响应。兼容 直接数组 / `data` / `members` / `items` / `list` / `projectMembers` 等多种包络。
+struct YXBMembersResponse: Decodable {
+    let items: [YXBMember]
+
+    init(from decoder: Decoder) throws {
+        if let array = try? decoder.singleValueContainer().decode([YXBMember].self) {
+            items = array
+            return
+        }
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        let candidates = ["data", "members", "items", "list", "projectMembers"]
+        for key in candidates {
+            if let array = try? container.decode([YXBMember].self, forKey: YXBAnyCodingKey(stringValue: key)) {
+                items = array
+                return
+            }
+        }
+        items = []
+    }
 }

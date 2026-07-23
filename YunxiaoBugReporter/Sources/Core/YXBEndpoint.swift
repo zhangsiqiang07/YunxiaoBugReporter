@@ -8,6 +8,7 @@ enum YXBEndpoint {
     case workitemTypes
     case workitemTypeFields(workitemTypeId: String)
     case createWorkitem
+    case projectMembers
     case attachments(workitemId: String)
 
     /// 生成路径（不含域名、不含 query）。
@@ -19,6 +20,8 @@ enum YXBEndpoint {
             return base(config) + "/projects/\(config.projectID)/workitemTypes/\(workitemTypeId)/fields"
         case .createWorkitem:
             return base(config) + "/workitems"
+        case .projectMembers:
+            return base(config) + "/projects/\(config.projectID)/members"
         case .attachments(let workitemId):
             return base(config) + "/workitems/\(workitemId)/attachments"
         }

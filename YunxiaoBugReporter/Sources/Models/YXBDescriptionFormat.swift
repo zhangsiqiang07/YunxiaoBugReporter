@@ -7,4 +7,12 @@ public enum YXBDescriptionFormat: String, Sendable, Codable {
     case plainText = "TEXT"
     /// Markdown。
     case markdown = "MD"
+
+    /// 云效创建工作项接口要求的描述格式取值（与 GetWorkitem 返回的 `formatType` 对齐）。
+    var apiValue: String {
+        switch self {
+        case .plainText: return "RICHTEXT"
+        case .markdown: return "MARKDOWN"
+        }
+    }
 }

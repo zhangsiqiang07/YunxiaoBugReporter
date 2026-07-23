@@ -209,6 +209,32 @@ public final class YunxiaoBugReporter {
         }
     }
 
+    // MARK: - 列表查询（供宿主构建选择 UI）
+
+    /// 查询当前项目下的 Bug 工作项类型列表，用于构建「工作项类型」选择器。
+    /// - Returns: 可用的工作项类型（已按 category=Bug 过滤由服务端控制；调用方可用 `YXBWorkitemTypeSelector` 进一步筛选）。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误。
+    public func listBugTypes() async throws -> [YXBWorkitemType] {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        let token = try await fetchToken(config: config, logger: logger)
+        return try await workitemService.fetchBugTypes(token: token)
+    }
+
+    /// 查询当前项目的成员列表，用于构建「负责人」选择器。
+    /// - Returns: 项目成员（id 为工作项体系用户标识，可直接作为 `assignedTo`）。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 PAT 缺少「项目成员 只读」权限）。
+    public func listProjectMembers() async throws -> [YXBMember] {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        let token = try await fetchToken(config: config, logger: logger)
+        return try await workitemService.fetchProjectMembers(token: token)
+    }
+
     private func statusDescription(_ status: YXBSubmitStatus) -> String {
         switch status {
         case .success: return "success"

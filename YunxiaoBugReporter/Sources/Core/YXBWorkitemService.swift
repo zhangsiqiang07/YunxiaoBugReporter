@@ -36,16 +36,27 @@ struct YXBWorkitemService {
         try await transport.sendWithoutResponse(request)
     }
 
+    /// 查询项目成员列表（用于负责人选择 UI）。
+    func fetchProjectMembers(token: String) async throws -> [YXBMember] {
+        let request = try builder.build(
+            endpoint: .projectMembers,
+            config: config,
+            method: "GET",
+            token: token
+        )
+        let response: YXBMembersResponse = try await transport.send(request, responseType: YXBMembersResponse.self)
+        return response.items
+    }
+
     /// 创建 Bug 工作项，返回工作项 ID。
     func createWorkitem(report: YXBBugReport, workitemTypeID: String, token: String) async throws -> String {
         let body = YXBCreateWorkitemBody(
-            projectId: config.projectID,
-            organizationId: config.edition == .standard ? config.organizationID : nil,
-            workitemType: workitemTypeID,
-            title: report.title,
-            description: report.description,
-            descriptionFormat: report.format.rawValue,
+            spaceId: config.projectID,
+            workitemTypeId: workitemTypeID,
+            subject: report.title,
             assignedTo: report.assignedTo ?? config.assignedTo,
+            description: report.description,
+            descriptionFormat: report.format.apiValue,
             customFieldValues: report.customFields,
             labels: report.labels
         )

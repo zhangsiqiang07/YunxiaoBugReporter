@@ -66,7 +66,7 @@ pod install
 open YunxiaoBugReporterExample.xcworkspace   # 必须用 workspace 打开，而非 .xcodeproj
 ```
 
-打开后，在「云效配置」中填写：服务域名、版本（中心版 / Region 版）、组织 ID（中心版必填）、项目 ID、负责人用户 ID、访问 Token；保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
+打开后，在「云效配置」中填写：服务域名、版本（中心版 / Region 版）、组织 ID（中心版必填）、项目 ID、访问 Token；「负责人」与「工作项类型」为列表型参数，可点击「从成员列表加载 / 从类型列表加载」按钮从云效拉取后以**选择**方式录入（加载失败或列表为空时回退为手动输入 ID）。保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
 
 - `Example/Pods/` 与 `*.xcworkspace` 已纳入 `.gitignore`；仅 `YunxiaoBugReporterExample.xcodeproj` 入库。
 - `YunxiaoBugReporterExample.xcodeproj` 由生成脚本重新产出；向 Example 新增/删除 Swift 源文件后，需重新执行 `pod install` 让 Pods 工程重新集成。
@@ -207,6 +207,39 @@ let result = try await reporter.submit(report)
 | 上传附件 | `/oapi/v1/projex/organizations/{org}/workitems/{id}/attachments` | `/oapi/v1/projex/workitems/{id}/attachments` |
 
 所有请求通过 Header `x-yunxiao-token` 传递 Token；创建工作项使用 `application/json`，附件上传使用 `multipart/form-data`（字段名固定为 `file`，由 SDK 生成随机 boundary）。
+
+### 6.1 创建工作项请求体字段（与云效官方对齐）
+
+`CreateWorkitem` 接口（中心版 / Region 版通用）的**必填** body 字段如下，SDK 已严格按此命名编码：
+
+| 字段 | 含义 | SDK 来源 |
+| --- | --- | --- |
+| `spaceId` | 空间 ID（**项目即空间**，等于配置中的 `projectID`） | `YXBConfiguration.projectID` |
+| `subject` | 工作项标题 | `YXBBugReport.title` |
+| `workitemTypeId` | 工作项类型 ID | 显式 `workitemTypeID` 或自动解析的 Bug 类型 |
+| `assignedTo` | 负责人用户 ID | `YXBBugReport.assignedTo` 或配置 `assignedTo` |
+
+可选字段：`description`、`descriptionFormat`（`RICHTEXT` / `MARKDOWN`）、`customFieldValues`、`labels` 等。
+> 早期版本曾误用 `projectId` / `title` / `workitemType` 字段名且缺失 `spaceId`，会触发服务端 `VALIDATE_MESSAGE_VIEW_SPACE_ID_REQUIRED`（400）。当前版本已修正。
+
+### 6.2 列表查询（用于构建选择 UI）
+
+SDK 暴露两个查询方法，便于宿主以「选择」而非「手填 ID」的方式录入列表型参数：
+
+```swift
+let reporter = YunxiaoBugReporter()
+try reporter.configure(config)
+
+// 负责人：返回项目成员（id 可直接作为 assignedTo）
+let members = try await reporter.listProjectMembers()   // [YXBMember]
+
+// 工作项类型：返回当前项目的全部工作项类型（可按 category 筛选）
+let types = try await reporter.listBugTypes()            // [YXBWorkitemType]
+```
+
+- `YXBMember`：`id`（用户标识）、`name`（展示名）。
+- `YXBWorkitemType`：`id`、`name`、`category`、`isDefault` 等，配合 `YXBWorkitemTypeSelector.select(from:)` 可自动选出默认 Bug 类型。
+- 两个方法均要求先 `configure`；Token 由 `tokenProvider` 提供，需具备「项目成员 只读」「项目协作 工作项 读写」权限。
 
 ---
 
