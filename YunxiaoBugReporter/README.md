@@ -53,7 +53,7 @@ pod install
 - 启动后只有一个 **「进入」** 落地页（Landing）；
 - 若尚未配置云效信息，**每次进入都会先跳转到「云效配置」页**（强制配置，无法返回跳过）；
 - 配置完成后进入主界面，包含 **「提交 Bug」** 与 **「云效配置」** 两个 Tab；
-- Token 保存在 **钥匙串（Keychain）**，不以明文写入代码或 `UserDefaults`；
+- Token 以**明文保存在 `UserDefaults`**（仅用于演示，配置页直接显示当前 Token；生产环境的宿主 App 仍应通过 `tokenProvider` 从 Keychain / 内部服务动态获取，SDK 不负责持久化）；
 - 配置页可选开启 **结果缓存**（内存 / UserDefaults 两种后端，可分别设置 TTL）。
 
 > SDK 自身仍支持 iOS 15.0+；仅 Example 演示 App 因使用了 `NavigationStack` 等 iOS 16 API，要求 iOS 16.0+。

@@ -76,14 +76,15 @@ final class DemoConfigStore: ObservableObject {
         projectID = persisted.projectID
         assignedTo = persisted.assignedTo
         workitemTypeID = persisted.workitemTypeID
+        token = persisted.token
         cacheEnabled = persisted.cacheEnabled
         cacheBackendRaw = persisted.cacheBackendRaw
         workitemTypeCacheTTL = persisted.workitemTypeCacheTTL
         tokenCacheTTL = persisted.tokenCacheTTL
-        token = (try? KeychainStore.readToken()) ?? ""
     }
 
     func save() {
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
         let persisted = PersistedConfig(
             domain: domain,
             editionRaw: editionRaw,
@@ -91,6 +92,7 @@ final class DemoConfigStore: ObservableObject {
             projectID: projectID,
             assignedTo: assignedTo,
             workitemTypeID: workitemTypeID,
+            token: trimmedToken,
             cacheEnabled: cacheEnabled,
             cacheBackendRaw: cacheBackendRaw,
             workitemTypeCacheTTL: workitemTypeCacheTTL,
@@ -98,12 +100,6 @@ final class DemoConfigStore: ObservableObject {
         )
         if let data = try? JSONEncoder().encode(persisted) {
             UserDefaults.standard.set(data, forKey: defaultsKey)
-        }
-        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedToken.isEmpty {
-            KeychainStore.deleteToken()
-        } else {
-            KeychainStore.saveToken(trimmedToken)
         }
     }
 
@@ -114,6 +110,7 @@ final class DemoConfigStore: ObservableObject {
         let trimmedProject = projectID.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAssignee = assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedType = workitemTypeID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedToken = token.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let cache: (any YXBCache)? = cacheEnabled
             ? (cacheBackendRaw == "userDefaults" ? YXBUserDefaultsCache() : YXBInMemoryCache()) as any YXBCache
@@ -126,7 +123,7 @@ final class DemoConfigStore: ObservableObject {
             projectID: trimmedProject,
             workitemTypeID: trimmedType.isEmpty ? nil : trimmedType,
             assignedTo: trimmedAssignee,
-            tokenProvider: { try KeychainStore.readToken() },
+            tokenProvider: { trimmedToken },
             cache: cache,
             workitemTypeCacheTTL: workitemTypeCacheTTL,
             tokenCacheTTL: tokenCacheTTL
@@ -140,6 +137,7 @@ final class DemoConfigStore: ObservableObject {
         var projectID: String
         var assignedTo: String
         var workitemTypeID: String
+        var token: String
         var cacheEnabled: Bool
         var cacheBackendRaw: String
         var workitemTypeCacheTTL: Double

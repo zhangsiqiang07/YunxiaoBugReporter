@@ -38,12 +38,14 @@ struct ConfigView: View {
             }
 
             Section {
-                SecureField("云效访问 Token", text: $store.token)
-                Text("Token 仅保存在设备钥匙串（Keychain），不会写入代码或明文 UserDefaults。")
+                TextField("云效访问 Token", text: $store.token, axis: .vertical)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text("Token 以明文保存在 UserDefaults（仅用于演示，生产环境请勿如此）。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: { Text("访问凭证") } footer: {
-                Text("留空将导致提交失败。")
+                Text("当前已保存的 Token 会显示在此处；留空将导致提交失败。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
