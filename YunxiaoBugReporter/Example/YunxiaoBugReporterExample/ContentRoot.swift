@@ -14,7 +14,9 @@ struct ContentRoot: View {
             } else if store.isConfigured || showMain {
                 MainTabView()
             } else {
-                ConfigView(mode: .forced, onComplete: { showMain = true })
+                NavigationStack {
+                    ConfigView(mode: .forced, onComplete: { showMain = true })
+                }
             }
         }
     }
