@@ -30,7 +30,12 @@ struct ConfigView: View {
                 TextField("项目 ID", text: $store.projectID)
                 TextField("负责人用户 ID", text: $store.assignedTo)
                 TextField("工作项类型 ID（可选）", text: $store.workitemTypeID)
-            } header: { Text("云效服务") }
+                    .textInputAutocapitalization(.never)
+            } header: { Text("云效服务") } footer: {
+                Text("仅「工作项类型 ID」为可选，留空时由 SDK 自动选择 Bug 类型，无需填写；其余字段均为必填。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             Section {
                 SecureField("云效访问 Token", text: $store.token)
