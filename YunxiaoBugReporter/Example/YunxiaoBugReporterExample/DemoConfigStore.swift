@@ -59,7 +59,7 @@ final class DemoConfigStore: ObservableObject {
            organizationID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append("中心版请填写组织 ID")
         }
-        if KeychainStore.hasToken == false {
+        if token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append("请填写云效访问 Token")
         }
         return issues
