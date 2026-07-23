@@ -7,104 +7,117 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		221E72AF60F599117310DAB8 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38BF9E6E80DA900771F573AE /* ViewController.swift */; };
-		B30579E10CD37D5DBA60D1D5 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F17540E256B3B0FAA2CFCAF6 /* Foundation.framework */; };
-		C0F7074440276CB0853E0CCB /* Pods_YunxiaoBugReporterExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AC0625594DF2C62DA9110A36 /* Pods_YunxiaoBugReporterExample.framework */; };
-		FD19A8CE3F540081EE1E3155 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5B05779F9D094A72FE327A5 /* AppDelegate.swift */; };
+		29B3659A0D855DE0F6065A66 /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9C03BE86FBA7DB9D1985CA5 /* ConfigView.swift */; };
+		31E060AF32EB109C2C73ADFB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 901D4B0248F9C666D6E3EFBD /* Foundation.framework */; };
+		3E3873F559F64587C9BE83F4 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD9802423846080EF45375E /* PhotoPicker.swift */; };
+		420110480BCA094269629780 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = FABDD256C98F4D1805A95E38 /* AppDelegate.swift */; };
+		AA1FDB69F2CB55C05CF2CE73 /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FEFD9DF764AB0EAF23E5A48 /* KeychainStore.swift */; };
+		AEB9D037DF0B5E6BB0F6211A /* Pods_YunxiaoBugReporterExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AA32BDC0E84A0BB88E58194A /* Pods_YunxiaoBugReporterExample.framework */; };
+		C2C8F3039DCEA05E965D2E02 /* DemoConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2272B7D0A3206D7E630B2E83 /* DemoConfigStore.swift */; };
+		C6F807842BF485BFBC8376C1 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CEFCCCE64F7FB520BB33D70 /* SubmitView.swift */; };
+		D9950F2ADB0A337F53689CFA /* ContentRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68FE0CFF90FA0A2354DBDC5 /* ContentRoot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		26C2C7A78B526E727DBD8CCC /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		38BF9E6E80DA900771F573AE /* ViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
-		471FAEA3B09E28652D619A8E /* YunxiaoBugReporterExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YunxiaoBugReporterExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AC0625594DF2C62DA9110A36 /* Pods_YunxiaoBugReporterExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_YunxiaoBugReporterExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		C77B1DDD2E1E956427E590DF /* Pods-YunxiaoBugReporterExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.release.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.release.xcconfig"; sourceTree = "<group>"; };
-		E48AA68DA294EDD3DF629D10 /* Pods-YunxiaoBugReporterExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.debug.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.debug.xcconfig"; sourceTree = "<group>"; };
-		F17540E256B3B0FAA2CFCAF6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		F5B05779F9D094A72FE327A5 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		1CEFCCCE64F7FB520BB33D70 /* SubmitView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SubmitView.swift; sourceTree = "<group>"; };
+		1FD9802423846080EF45375E /* PhotoPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoPicker.swift; sourceTree = "<group>"; };
+		2272B7D0A3206D7E630B2E83 /* DemoConfigStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConfigStore.swift; sourceTree = "<group>"; };
+		2FEFD9DF764AB0EAF23E5A48 /* KeychainStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = KeychainStore.swift; sourceTree = "<group>"; };
+		6BC9F37DFB366DF742D081D8 /* Pods-YunxiaoBugReporterExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.release.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.release.xcconfig"; sourceTree = "<group>"; };
+		901D4B0248F9C666D6E3EFBD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		966FE53A73EBD9EB91700F9E /* YunxiaoBugReporterExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YunxiaoBugReporterExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA32BDC0E84A0BB88E58194A /* Pods_YunxiaoBugReporterExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_YunxiaoBugReporterExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B68FE0CFF90FA0A2354DBDC5 /* ContentRoot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentRoot.swift; sourceTree = "<group>"; };
+		C6A3CB5275AD0ECF46E9176A /* Pods-YunxiaoBugReporterExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.debug.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.debug.xcconfig"; sourceTree = "<group>"; };
+		C9C03BE86FBA7DB9D1985CA5 /* ConfigView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
+		FABDD256C98F4D1805A95E38 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		8CD9470ED674F0759AFA6618 /* Frameworks */ = {
+		3A8B341A51439F12289933A3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B30579E10CD37D5DBA60D1D5 /* Foundation.framework in Frameworks */,
-				C0F7074440276CB0853E0CCB /* Pods_YunxiaoBugReporterExample.framework in Frameworks */,
+				31E060AF32EB109C2C73ADFB /* Foundation.framework in Frameworks */,
+				AEB9D037DF0B5E6BB0F6211A /* Pods_YunxiaoBugReporterExample.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		148E0185E0039AA5059E92E4 /* Frameworks */ = {
+		25B567DD89FDF18D7F0AEB17 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				E8FE5DBE00BB4FAA15607EBC /* iOS */,
-				AC0625594DF2C62DA9110A36 /* Pods_YunxiaoBugReporterExample.framework */,
+				901D4B0248F9C666D6E3EFBD /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		AB2CB70B2EE4CABBC68BFFEC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				25B567DD89FDF18D7F0AEB17 /* iOS */,
+				AA32BDC0E84A0BB88E58194A /* Pods_YunxiaoBugReporterExample.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
-		663FE9D1396AE7826DF4FF2C /* Pods */ = {
+		BB367C1841C153531F958840 = {
 			isa = PBXGroup;
 			children = (
-				C77B1DDD2E1E956427E590DF /* Pods-YunxiaoBugReporterExample.release.xcconfig */,
-				E48AA68DA294EDD3DF629D10 /* Pods-YunxiaoBugReporterExample.debug.xcconfig */,
+				D6976D14E46C227E5C750935 /* Products */,
+				AB2CB70B2EE4CABBC68BFFEC /* Frameworks */,
+				CE110315512BFA75E4E1197F /* YunxiaoBugReporterExample */,
+				BF8F8352621F7287AE8139EF /* Pods */,
+			);
+			sourceTree = "<group>";
+		};
+		BF8F8352621F7287AE8139EF /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				6BC9F37DFB366DF742D081D8 /* Pods-YunxiaoBugReporterExample.release.xcconfig */,
+				C6A3CB5275AD0ECF46E9176A /* Pods-YunxiaoBugReporterExample.debug.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
-		D994909F8DA8D2EE3871B0B1 /* YunxiaoBugReporterExample */ = {
+		CE110315512BFA75E4E1197F /* YunxiaoBugReporterExample */ = {
 			isa = PBXGroup;
 			children = (
-				F5B05779F9D094A72FE327A5 /* AppDelegate.swift */,
-				38BF9E6E80DA900771F573AE /* ViewController.swift */,
-				26C2C7A78B526E727DBD8CCC /* Info.plist */,
+				FABDD256C98F4D1805A95E38 /* AppDelegate.swift */,
+				2272B7D0A3206D7E630B2E83 /* DemoConfigStore.swift */,
+				2FEFD9DF764AB0EAF23E5A48 /* KeychainStore.swift */,
+				B68FE0CFF90FA0A2354DBDC5 /* ContentRoot.swift */,
+				C9C03BE86FBA7DB9D1985CA5 /* ConfigView.swift */,
+				1CEFCCCE64F7FB520BB33D70 /* SubmitView.swift */,
+				1FD9802423846080EF45375E /* PhotoPicker.swift */,
 			);
 			name = YunxiaoBugReporterExample;
 			path = YunxiaoBugReporterExample;
 			sourceTree = "<group>";
 		};
-		E8FE5DBE00BB4FAA15607EBC /* iOS */ = {
+		D6976D14E46C227E5C750935 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F17540E256B3B0FAA2CFCAF6 /* Foundation.framework */,
-			);
-			name = iOS;
-			sourceTree = "<group>";
-		};
-		F27A10E1A53020CCCD5ECE97 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				471FAEA3B09E28652D619A8E /* YunxiaoBugReporterExample.app */,
+				966FE53A73EBD9EB91700F9E /* YunxiaoBugReporterExample.app */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		FDA51BEEB051ECCB3E150B1D = {
-			isa = PBXGroup;
-			children = (
-				F27A10E1A53020CCCD5ECE97 /* Products */,
-				148E0185E0039AA5059E92E4 /* Frameworks */,
-				D994909F8DA8D2EE3871B0B1 /* YunxiaoBugReporterExample */,
-				663FE9D1396AE7826DF4FF2C /* Pods */,
-			);
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		1F29C232016C76120E9A470C /* YunxiaoBugReporterExample */ = {
+		A84094E779AEC82D05909846 /* YunxiaoBugReporterExample */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = C89E2B8E48AAA0CA1E69EBDA /* Build configuration list for PBXNativeTarget "YunxiaoBugReporterExample" */;
+			buildConfigurationList = 249401250D2C7C9FA7AC694C /* Build configuration list for PBXNativeTarget "YunxiaoBugReporterExample" */;
 			buildPhases = (
-				8E9EAC87ADEBD1D1C1ABBCD5 /* [CP] Check Pods Manifest.lock */,
-				22A18A4C2DB9508F1600B4D6 /* Sources */,
-				8CD9470ED674F0759AFA6618 /* Frameworks */,
-				07AAF46EB88933B84AE78106 /* Resources */,
-				3CC274E81AF7678B109EB90E /* [CP] Embed Pods Frameworks */,
+				E0FF0E7116A275DA6D93FC8B /* [CP] Check Pods Manifest.lock */,
+				F6BB88D40FC2D236C922FA2D /* Sources */,
+				3A8B341A51439F12289933A3 /* Frameworks */,
+				DC3CC8EF3BEBD27A08779508 /* Resources */,
+				10ED98061EE6DFA1EA39DFCF /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
@@ -112,19 +125,19 @@
 			);
 			name = YunxiaoBugReporterExample;
 			productName = YunxiaoBugReporterExample;
-			productReference = 471FAEA3B09E28652D619A8E /* YunxiaoBugReporterExample.app */;
+			productReference = 966FE53A73EBD9EB91700F9E /* YunxiaoBugReporterExample.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		8CD7E81DEA351A224133FA7C /* Project object */ = {
+		09109D76A3238D2C2A924BE6 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 1600;
 				LastUpgradeCheck = 1600;
 			};
-			buildConfigurationList = 45C6E197D196B8AE6AE156E4 /* Build configuration list for PBXProject "YunxiaoBugReporterExample" */;
+			buildConfigurationList = FDA4473079C02B3DB58DD44A /* Build configuration list for PBXProject "YunxiaoBugReporterExample" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -132,20 +145,20 @@
 				en,
 				Base,
 			);
-			mainGroup = FDA51BEEB051ECCB3E150B1D;
+			mainGroup = BB367C1841C153531F958840;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = F27A10E1A53020CCCD5ECE97 /* Products */;
+			productRefGroup = D6976D14E46C227E5C750935 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				1F29C232016C76120E9A470C /* YunxiaoBugReporterExample */,
+				A84094E779AEC82D05909846 /* YunxiaoBugReporterExample */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		07AAF46EB88933B84AE78106 /* Resources */ = {
+		DC3CC8EF3BEBD27A08779508 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -155,7 +168,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		3CC274E81AF7678B109EB90E /* [CP] Embed Pods Frameworks */ = {
+		10ED98061EE6DFA1EA39DFCF /* [CP] Embed Pods Frameworks */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -173,7 +186,7 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		8E9EAC87ADEBD1D1C1ABBCD5 /* [CP] Check Pods Manifest.lock */ = {
+		E0FF0E7116A275DA6D93FC8B /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -198,44 +211,24 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		22A18A4C2DB9508F1600B4D6 /* Sources */ = {
+		F6BB88D40FC2D236C922FA2D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				FD19A8CE3F540081EE1E3155 /* AppDelegate.swift in Sources */,
-				221E72AF60F599117310DAB8 /* ViewController.swift in Sources */,
+				420110480BCA094269629780 /* AppDelegate.swift in Sources */,
+				C2C8F3039DCEA05E965D2E02 /* DemoConfigStore.swift in Sources */,
+				AA1FDB69F2CB55C05CF2CE73 /* KeychainStore.swift in Sources */,
+				D9950F2ADB0A337F53689CFA /* ContentRoot.swift in Sources */,
+				29B3659A0D855DE0F6065A66 /* ConfigView.swift in Sources */,
+				C6F807842BF485BFBC8376C1 /* SubmitView.swift in Sources */,
+				3E3873F559F64587C9BE83F4 /* PhotoPicker.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		0693353D05BF4E01B0EC0BD1 /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = C77B1DDD2E1E956427E590DF /* Pods-YunxiaoBugReporterExample.release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_BITCODE = NO;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = YunxiaoBugReporterExample/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.YunxiaoBugReporterExample;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		7484D21F1786989CAE718D89 /* Debug */ = {
+		20F11FDC1C4A945A9FF62AF8 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -296,7 +289,44 @@
 			};
 			name = Debug;
 		};
-		7C357BC58CAD64639E8853E4 /* Release */ = {
+		521AA8AAFD183BC64F8BF6FB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C6A3CB5275AD0ECF46E9176A /* Pods-YunxiaoBugReporterExample.debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = YunxiaoBugReporterExample/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.YunxiaoBugReporterExample;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		77DE46EE5C8563FD360E8855 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 6BC9F37DFB366DF742D081D8 /* Pods-YunxiaoBugReporterExample.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = YunxiaoBugReporterExample/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.YunxiaoBugReporterExample;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		7D4E1DA255EA88553AA9C12A /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -350,52 +380,28 @@
 			};
 			name = Release;
 		};
-		E85E48827B2C0E7A3E02C64C /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = E48AA68DA294EDD3DF629D10 /* Pods-YunxiaoBugReporterExample.debug.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GENERATE_ASSET_SYMBOLS = NO;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "";
-				CODE_SIGN_STYLE = Automatic;
-				ENABLE_BITCODE = NO;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = YunxiaoBugReporterExample/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.example.YunxiaoBugReporterExample;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		45C6E197D196B8AE6AE156E4 /* Build configuration list for PBXProject "YunxiaoBugReporterExample" */ = {
+		249401250D2C7C9FA7AC694C /* Build configuration list for PBXNativeTarget "YunxiaoBugReporterExample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				7484D21F1786989CAE718D89 /* Debug */,
-				7C357BC58CAD64639E8853E4 /* Release */,
+				77DE46EE5C8563FD360E8855 /* Release */,
+				521AA8AAFD183BC64F8BF6FB /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		C89E2B8E48AAA0CA1E69EBDA /* Build configuration list for PBXNativeTarget "YunxiaoBugReporterExample" */ = {
+		FDA4473079C02B3DB58DD44A /* Build configuration list for PBXProject "YunxiaoBugReporterExample" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0693353D05BF4E01B0EC0BD1 /* Release */,
-				E85E48827B2C0E7A3E02C64C /* Debug */,
+				20F11FDC1C4A945A9FF62AF8 /* Debug */,
+				7D4E1DA255EA88553AA9C12A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 8CD7E81DEA351A224133FA7C /* Project object */;
+	rootObject = 09109D76A3238D2C2A924BE6 /* Project object */;
 }

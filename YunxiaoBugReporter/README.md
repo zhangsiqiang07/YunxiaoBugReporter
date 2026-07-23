@@ -48,7 +48,17 @@ pod install
 
 ### 运行自带 Example
 
-仓库内 `Example/` 是一个最小可运行的演示 App（纯 `UIKit` + 代码布局，无 Storyboard）：
+仓库内 `Example/` 是一个最小可运行的演示 App，采用 **SwiftUI**（最低 iOS 16.0），界面贴合 Apple HIG：
+
+- 启动后只有一个 **「进入」** 落地页（Landing）；
+- 若尚未配置云效信息，**每次进入都会先跳转到「云效配置」页**（强制配置，无法返回跳过）；
+- 配置完成后进入主界面，包含 **「提交 Bug」** 与 **「云效配置」** 两个 Tab；
+- Token 保存在 **钥匙串（Keychain）**，不以明文写入代码或 `UserDefaults`；
+- 配置页可选开启 **结果缓存**（内存 / UserDefaults 两种后端，可分别设置 TTL）。
+
+> SDK 自身仍支持 iOS 15.0+；仅 Example 演示 App 因使用了 `NavigationStack` 等 iOS 16 API，要求 iOS 16.0+。
+
+运行方式：
 
 ```bash
 cd Example
@@ -56,14 +66,10 @@ pod install
 open YunxiaoBugReporterExample.xcworkspace   # 必须用 workspace 打开，而非 .xcodeproj
 ```
 
-- 在 `Example/YunxiaoBugReporterExample/ViewController.swift` 的 `configureReporter()` 中，把 `<YOUR_ORGANIZATION_ID>` / `<YOUR_PROJECT_ID>` / `<YOUR_ASSIGNEE_USER_ID>` 替换为真实云效参数；
-- Token 通过环境变量注入，避免硬编码进仓库：
-  ```bash
-  YUNXIAO_TOKEN=<your-token> xcodebuild \
-    -workspace YunxiaoBugReporterExample.xcworkspace \
-    -scheme YunxiaoBugReporterExample -sdk iphonesimulator build
-  ```
+打开后，在「云效配置」中填写：服务域名、版本（中心版 / Region 版）、组织 ID（中心版必填）、项目 ID、负责人用户 ID、访问 Token；保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
+
 - `Example/Pods/` 与 `*.xcworkspace` 已纳入 `.gitignore`；仅 `YunxiaoBugReporterExample.xcodeproj` 入库。
+- `YunxiaoBugReporterExample.xcodeproj` 由生成脚本重新产出；向 Example 新增/删除 Swift 源文件后，需重新执行 `pod install` 让 Pods 工程重新集成。
 
 ---
 

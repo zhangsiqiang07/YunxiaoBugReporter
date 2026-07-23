@@ -1,4 +1,5 @@
 import UIKit
+import SwiftUI
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -9,8 +10,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         let window = UIWindow(frame: UIScreen.main.bounds)
-        let root = UINavigationController(rootViewController: ViewController())
-        root.navigationBar.prefersLargeTitles = true
+        let root = UIHostingController(rootView: ContentRoot().environmentObject(DemoConfigStore.shared))
+        root.view.backgroundColor = .systemBackground
         window.rootViewController = root
         window.makeKeyAndVisible()
         self.window = window
