@@ -39,6 +39,9 @@ public struct YXBConfiguration: Sendable {
     public var timeout: TimeInterval
 
     /// 可选日志器。
+    ///
+    /// 为 `nil` 时，SDK 自动使用内置的 `YXBOSLogger`（基于 `os.log`），
+    /// 即**所有请求默认都会记录日志**。传入 `YXBNoOpLogger()` 可显式关闭日志。
     public var logger: (any YXBLogger)?
 
     /// 附件上传并发数，范围 1...4，默认 2。

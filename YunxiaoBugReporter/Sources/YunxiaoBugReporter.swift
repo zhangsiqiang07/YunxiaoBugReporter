@@ -31,14 +31,20 @@ public final class YunxiaoBugReporter {
     ///   - transport: 可选注入的传输层（测试用）。生产环境不传，使用默认 `URLSession` 实现。
     internal init(configuration: YXBConfiguration, transport: (any YXBTransport)? = nil) throws {
         try YXBValidation.validateConfiguration(configuration)
-        let resolvedTransport = transport ?? YXBHTTPClient(timeout: configuration.timeout)
+        let resolvedTransport = transport ?? YXBHTTPClient(
+            timeout: configuration.timeout,
+            logger: configuration.logger ?? YXBOSLogger.shared
+        )
         apply(configuration: configuration, transport: resolvedTransport)
     }
 
     /// 配置 SDK。重复调用会覆盖之前的配置。
     public func configure(_ configuration: YXBConfiguration) throws {
         try YXBValidation.validateConfiguration(configuration)
-        let client = YXBHTTPClient(timeout: configuration.timeout)
+        let client = YXBHTTPClient(
+            timeout: configuration.timeout,
+            logger: configuration.logger ?? YXBOSLogger.shared
+        )
         apply(configuration: configuration, transport: client)
     }
 
@@ -66,7 +72,7 @@ public final class YunxiaoBugReporter {
         }
 
         try YXBValidation.validateReport(report)
-        let logger = config.logger
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
 
         let token = try await fetchToken(config: config, logger: logger)
         logger?.log(level: .info, message: "[YunxiaoBugReporter] 开始创建 Bug: \(report.title)")

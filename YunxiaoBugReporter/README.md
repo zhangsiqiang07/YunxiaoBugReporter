@@ -238,6 +238,34 @@ let report = YXBBugReport(
 - **生产环境建议后续通过内部 Gateway 上报**：由 Gateway 持有云效凭据，App 只与自有后端通信，避免令牌下发到客户端。
 - SDK 的日志与错误信息**不会**输出 Token、完整附件二进制或含用户隐私的完整请求体。
 
+### 8.1 请求日志（默认开启）
+
+SDK 在传输层（`YXBHTTPClient`）**统一记录每一个 HTTP 请求**，无需额外配置：
+
+- 请求：`→ POST https://.../workitems headers={ ... x-yunxiao-token: <redacted> ... } body=1234 bytes`
+- 成功响应：`← 201 https://.../workitems（耗时 0.34s，512 bytes）`
+- 失败响应：`← 401 https://.../workitems（耗时 0.12s）：<云效返回 message>`
+
+默认日志器为内置的 `YXBOSLogger`（基于 `os.log`，子系统 `com.yunxiao.bugreporter`），当 `YXBConfiguration.logger` 为 `nil` 时自动启用——即**开箱即用，所有请求均有日志**。
+
+**Token 头安全**：`x-yunxiao-token` 在任何日志中一律以 `<redacted>` 输出，不会泄露。
+
+自定义 / 关闭：
+
+```swift
+// 1) 使用内置日志器（默认行为，可省）
+var config = YXBConfiguration(...)
+config.logger = YXBOSLogger()           // os.log 输出
+
+// 2) 注入自己的日志器（如接入自有上报系统）
+config.logger = MyAppLogger()          // 遵循 YXBLogger 协议
+
+// 3) 显式关闭所有日志
+config.logger = YXBNoOpLogger()
+```
+
+> 日志协议 `YXBLogger` 与级别 `YXBLogLevel`（debug / info / warn / error）均为公开的，宿主可实现后注入。
+
 ---
 
 ## 9. 错误处理
