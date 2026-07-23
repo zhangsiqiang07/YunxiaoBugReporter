@@ -116,11 +116,14 @@ public struct YXBMember: Identifiable, Sendable, Decodable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
-        let idCandidates = ["id", "identifier", "userId", "accountId", "userIdentifier"]
+        let idCandidates = ["id", "identifier", "userId", "userIdentifier", "accountId", "account"]
         id = idCandidates.compactMap { key in
             try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
         }.first ?? ""
-        let nameCandidates = ["name", "displayName", "nickName", "realName", "displayNickName"]
+        // 云效 projex 成员接口实际返回字段为 `userId` / `userName`（直接数组包络）。
+        // 这里按展示名优先级容错解析：展示名、用户名、真名、昵称、账号。
+        let nameCandidates = ["displayName", "userName", "displayRealName", "displayNickName",
+                              "name", "realName", "nickName", "nickname", "account", "loginName"]
         name = nameCandidates.compactMap { key in
             try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
         }.first ?? id

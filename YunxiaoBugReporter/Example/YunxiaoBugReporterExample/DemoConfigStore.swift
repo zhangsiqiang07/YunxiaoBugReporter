@@ -15,6 +15,7 @@ final class DemoConfigStore: ObservableObject {
     @Published var organizationID = ""
     @Published var projectID = ""
     @Published var assignedTo = ""
+    @Published var assignedToName = ""
     @Published var workitemTypeID = ""
     @Published var token = ""
     @Published var cacheEnabled = false
@@ -75,6 +76,7 @@ final class DemoConfigStore: ObservableObject {
         organizationID = persisted.organizationID
         projectID = persisted.projectID
         assignedTo = persisted.assignedTo
+        assignedToName = persisted.assignedToName
         workitemTypeID = persisted.workitemTypeID
         token = persisted.token
         cacheEnabled = persisted.cacheEnabled
@@ -91,6 +93,7 @@ final class DemoConfigStore: ObservableObject {
             organizationID: organizationID,
             projectID: projectID,
             assignedTo: assignedTo,
+            assignedToName: assignedToName,
             workitemTypeID: workitemTypeID,
             token: trimmedToken,
             cacheEnabled: cacheEnabled,
@@ -136,6 +139,7 @@ final class DemoConfigStore: ObservableObject {
         var organizationID: String
         var projectID: String
         var assignedTo: String
+        var assignedToName: String
         var workitemTypeID: String
         var token: String
         var cacheEnabled: Bool

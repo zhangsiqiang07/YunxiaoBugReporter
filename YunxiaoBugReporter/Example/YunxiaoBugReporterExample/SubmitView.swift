@@ -17,6 +17,16 @@ struct SubmitView: View {
 
     var body: some View {
         Form {
+            Section("指派给") {
+                HStack {
+                    Text("负责人")
+                    Spacer()
+                    Text(assigneeDisplay)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.trailing)
+                }
+            }
+
             Section("Bug 信息") {
                 TextField("标题", text: $title)
                 Picker("描述格式", selection: $formatRaw) {
@@ -89,6 +99,16 @@ struct SubmitView: View {
         .sheet(isPresented: $showPicker) {
             PhotoPicker(images: $images)
         }
+    }
+
+    /// 负责人展示文案：优先显示姓名，并附上用户 ID（提交接口需要 ID）。
+    private var assigneeDisplay: String {
+        let id = store.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !id.isEmpty else { return "未配置" }
+        if store.assignedToName.isEmpty {
+            return id
+        }
+        return "\(store.assignedToName)（\(id)）"
     }
 
     private func submit() async {

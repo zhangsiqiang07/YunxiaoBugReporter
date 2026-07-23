@@ -45,11 +45,23 @@ struct ConfigView: View {
                 if memberOptions.isEmpty {
                     TextField("负责人用户 ID", text: $store.assignedTo)
                         .textInputAutocapitalization(.never)
+                        .onChange(of: store.assignedTo) { _ in
+                            // 手动输入时无法获知姓名，清空展示名。
+                            store.assignedToName = ""
+                        }
                 } else {
                     Picker("负责人", selection: $store.assignedTo) {
                         ForEach(memberOptions) { member in
                             Text(member.name).tag(member.id)
                         }
+                    }
+                    .onChange(of: store.assignedTo) { newValue in
+                        store.assignedToName = memberOptions.first(where: { $0.id == newValue })?.name ?? ""
+                    }
+                    if !store.assignedToName.isEmpty {
+                        Text("当前选择：\(store.assignedToName)（\(store.assignedTo)）")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 Button {
