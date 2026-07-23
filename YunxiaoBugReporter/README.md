@@ -143,6 +143,8 @@ let config2 = YXBConfiguration(
 
 安全提示：Token 是敏感凭证。**不建议**将 Token 缓存到 `YXBUserDefaultsCache`（明文落盘，存在越狱/备份提取风险）。缓存 Token 时请使用 `YXBInMemoryCache`；若必须采用 `UserDefaults` 后端，请确保运行环境受控（如企业内部托管设备），且不要写入高权限 Token。工作项类型属非敏感派生数据，适合持久化。
 
+**Token 失效自动恢复**：若缓存命中了旧 Token（例如更换 Token 后、Token 过期），请求返回 **HTTP 401** 时，SDK 会自动清空 Token 缓存并**用最新 Token 重试一次**（`submit` / `listBugTypes` / `listProjectMembers` 均适用）。因此即便缓存了旧 Token，也不会导致「一直用旧 Token 提交失败」——下一次请求即生效。若你手动更换了 Token，依赖此机制即可，无需手动清缓存。
+
 自定义后端只需实现 `YXBCache` 协议（例如 Keychain、文件、LRU 内存等），即可注入 `cache` 字段。
 
 ---

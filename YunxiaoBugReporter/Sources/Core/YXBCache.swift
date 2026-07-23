@@ -18,6 +18,10 @@ public protocol YXBCache: Sendable {
     ///   - key: 键。
     ///   - ttl: 存活秒数；`nil` 或 `<= 0` 表示永不过期。
     func setString(_ value: String, forKey key: String, ttl: TimeInterval?) async
+
+    /// 删除指定键的缓存值（用于 Token 失效时主动失效，避免复用旧凭证）。
+    /// 实现应仅删除该键对应的值与附属过期标记，不影响其它键。
+    func remove(forKey key: String) async
 }
 
 // MARK: - 内存缓存（默认，进程级安全）
@@ -57,6 +61,10 @@ public actor YXBInMemoryCache: YXBCache {
     /// 清空全部缓存（测试或主动失效用）。
     public func removeAll() async {
         store.removeAll()
+    }
+
+    public func remove(forKey key: String) async {
+        store.removeValue(forKey: key)
     }
 }
 
@@ -110,5 +118,11 @@ public actor YXBUserDefaultsCache: YXBCache {
         for key in defaults.dictionaryRepresentation().keys where key.hasPrefix(Self.keyPrefix) {
             defaults.removeObject(forKey: key)
         }
+    }
+
+    public func remove(forKey key: String) async {
+        let fullKey = Self.keyPrefix + key
+        defaults.removeObject(forKey: fullKey)
+        defaults.removeObject(forKey: fullKey + expirySuffix)
     }
 }

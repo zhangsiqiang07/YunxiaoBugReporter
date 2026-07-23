@@ -74,6 +74,41 @@ public final class YunxiaoBugReporter {
         try YXBValidation.validateReport(report)
         let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
 
+        // 若因 Token 失效/被更换而收到 401，清空 Token 缓存后用新 Token 重试一次。
+        do {
+            return try await performSubmit(
+                report: report,
+                config: config,
+                workitemService: workitemService,
+                attachmentService: attachmentService,
+                logger: logger
+            )
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            return try await performSubmit(
+                report: report,
+                config: config,
+                workitemService: workitemService,
+                attachmentService: attachmentService,
+                logger: logger
+            )
+        }
+    }
+
+    /// 提交编排主体（不含 401 重试外层）。
+    private func performSubmit(
+        report: YXBBugReport,
+        config: YXBConfiguration,
+        workitemService: YXBWorkitemService,
+        attachmentService: YXBAttachmentService,
+        logger: (any YXBLogger)?
+    ) async throws -> YXBSubmitResult {
         let token = try await fetchToken(config: config, logger: logger)
         logger?.log(level: .info, message: "[YunxiaoBugReporter] 开始创建 Bug: \(report.title)")
 
@@ -219,8 +254,20 @@ public final class YunxiaoBugReporter {
             throw YXBError.notConfigured
         }
         let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
-        let token = try await fetchToken(config: config, logger: logger)
-        return try await workitemService.fetchBugTypes(token: token)
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchBugTypes(token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchBugTypes(token: token)
+        }
     }
 
     /// 查询当前项目的成员列表，用于构建「负责人」选择器。
@@ -231,8 +278,20 @@ public final class YunxiaoBugReporter {
             throw YXBError.notConfigured
         }
         let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
-        let token = try await fetchToken(config: config, logger: logger)
-        return try await workitemService.fetchProjectMembers(token: token)
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchProjectMembers(token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchProjectMembers(token: token)
+        }
     }
 
     private func statusDescription(_ status: YXBSubmitStatus) -> String {
