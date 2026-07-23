@@ -294,6 +294,31 @@ public final class YunxiaoBugReporter {
         }
     }
 
+    /// 查询指定工作项类型的字段定义，用于构建「必填 / 列表型自定义字段」选择器。
+    /// - Parameter workitemTypeID: 工作项类型 ID。若为空，本方法会抛错；调用方可先用 `listBugTypes()` 获取并让用户选择，或使用 `config.workitemTypeID`。
+    /// - Returns: 字段定义列表，包含 `id`、`name`、`format`、`required`、`defaultValue`、`options` 等。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 PAT 缺少「工作项类型字段配置 只读」权限）。
+    public func listWorkitemTypeFields(workitemTypeID: String) async throws -> [YXBFieldDefinition] {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchTypeFields(workitemTypeId: workitemTypeID, token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchTypeFields(workitemTypeId: workitemTypeID, token: token)
+        }
+    }
+
     private func statusDescription(_ status: YXBSubmitStatus) -> String {
         switch status {
         case .success: return "success"

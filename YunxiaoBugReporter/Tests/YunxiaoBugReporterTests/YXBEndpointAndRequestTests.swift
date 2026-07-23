@@ -78,14 +78,15 @@ final class YXBEndpointAndRequestTests: XCTestCase {
         XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
 
         let json = try XCTUnwrap(YXBTestHelpers.jsonBody(of: request))
-        XCTAssertEqual(json["title"] as? String, "崩溃问题")
+        XCTAssertEqual(json["subject"] as? String, "崩溃问题")
         XCTAssertEqual(json["description"] as? String, "点击按钮崩溃")
-        XCTAssertEqual(json["workitemType"] as? String, "wt-1")
+        XCTAssertEqual(json["workitemTypeId"] as? String, "wt-1")
         XCTAssertEqual(json["assignedTo"] as? String, "assignee-9")
-        XCTAssertEqual(json["descriptionFormat"] as? String, "MD")
-        XCTAssertEqual(json["projectId"] as? String, "proj-1")
-        XCTAssertEqual(json["organizationId"] as? String, "org-1")
+        XCTAssertEqual(json["spaceId"] as? String, "proj-1")
+        XCTAssertEqual(json["descriptionFormat"] as? String, "MARKDOWN")
         XCTAssertEqual(json["labels"] as? [String], ["crash", "ios"])
+        XCTAssertNil(json["projectId"])
+        XCTAssertNil(json["organizationId"])
     }
 
     // MARK: - 7 customFieldValues 编码

@@ -15,6 +15,12 @@ struct SubmitView: View {
     @State private var resultIsError = false
     @State private var showPicker = false
 
+    // MARK: - 工作项类型字段（必填列表项）
+    @State private var fieldDefinitions: [YXBFieldDefinition] = []
+    @State private var customFieldValues: [String: String] = [:]
+    @State private var isLoadingFields = false
+    @State private var fieldLoadError: String?
+
     var body: some View {
         Form {
             Section("指派给") {
@@ -26,6 +32,8 @@ struct SubmitView: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
+
+            requiredFieldsSection
 
             Section("Bug 信息") {
                 TextField("标题", text: $title)
@@ -84,7 +92,7 @@ struct SubmitView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .disabled(isSubmitting || title.trimmingCharacters(in: .whitespaces).isEmpty)
+                .disabled(isSubmitting || title.trimmingCharacters(in: .whitespaces).isEmpty || !requiredFieldsFilled)
             }
 
             if let resultText {
@@ -99,6 +107,10 @@ struct SubmitView: View {
         .sheet(isPresented: $showPicker) {
             PhotoPicker(images: $images)
         }
+        .onAppear {
+            guard !isLoadingFields else { return }
+            Task { await loadFields() }
+        }
     }
 
     /// 负责人展示文案：优先显示姓名，并附上用户 ID（提交接口需要 ID）。
@@ -111,10 +123,128 @@ struct SubmitView: View {
         return "\(store.assignedToName)（\(id)）"
     }
 
+    /// 必填且为列表（单选/多选）的字段。
+    private var requiredListFields: [YXBFieldDefinition] {
+        fieldDefinitions.filter {
+            $0.required && (["list", "multiList"].contains($0.format)) && !$0.options.isEmpty
+        }
+    }
+
+    /// 所有必填列表字段是否都已选择。
+    private var requiredFieldsFilled: Bool {
+        requiredListFields.allSatisfy {
+            guard let value = customFieldValues[$0.id] else { return false }
+            return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+    }
+
+    @ViewBuilder
+    private var requiredFieldsSection: some View {
+        if isLoadingFields {
+            Section("必填字段") {
+                HStack {
+                    Text("加载字段配置中…")
+                    Spacer()
+                    ProgressView()
+                }
+            }
+        } else if let error = fieldLoadError {
+            Section("必填字段") {
+                Text("加载失败：\(error)")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                Button("重试") {
+                    Task { await loadFields() }
+                }
+            }
+        } else {
+            ForEach(requiredListFields) { field in
+                Section(field.name) {
+                    Picker("", selection: binding(for: field.id)) {
+                        Text("请选择").tag("")
+                        ForEach(field.options) { option in
+                            Text(option.displayValue).tag(option.id)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func binding(for fieldID: String) -> Binding<String> {
+        Binding(
+            get: { customFieldValues[fieldID] ?? "" },
+            set: { customFieldValues[fieldID] = $0.isEmpty ? nil : $0 }
+        )
+    }
+
+    /// 拉取当前工作项类型的字段定义，并自动为必填列表字段填入默认值。
+    private func loadFields() async {
+        isLoadingFields = true
+        fieldLoadError = nil
+        defer { isLoadingFields = false }
+
+        do {
+            let config = try store.buildConfiguration()
+            let reporter = YunxiaoBugReporter()
+            try reporter.configure(config)
+
+            let typeID = try await resolveWorkitemTypeID(reporter: reporter)
+            let fields = try await reporter.listWorkitemTypeFields(workitemTypeID: typeID)
+
+            await MainActor.run {
+                fieldDefinitions = fields
+                applyDefaultFieldValues(fields: fields)
+            }
+        } catch {
+            await MainActor.run {
+                fieldLoadError = error.localizedDescription
+            }
+        }
+    }
+
+    private func resolveWorkitemTypeID(reporter: YunxiaoBugReporter) async throws -> String {
+        let explicit = store.workitemTypeID.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !explicit.isEmpty { return explicit }
+
+        let types = try await reporter.listBugTypes()
+        guard let selected = types.first(where: { $0.category?.lowercased() == "bug" }) ?? types.first else {
+            throw YXBError.workitemTypeNotFound
+        }
+        return selected.id
+    }
+
+    private func applyDefaultFieldValues(fields: [YXBFieldDefinition]) {
+        for field in requiredListFields {
+            guard customFieldValues[field.id] == nil,
+                  let defaultValue = field.defaultValue,
+                  !defaultValue.isEmpty else { continue }
+
+            // 默认值通常是选项 id；若未命中，再尝试匹配 option.value（如 "3"）。
+            if field.options.contains(where: { $0.id == defaultValue }) {
+                customFieldValues[field.id] = defaultValue
+            } else if let matched = field.options.first(where: { $0.value == defaultValue }) {
+                customFieldValues[field.id] = matched.id
+            }
+        }
+    }
+
     private func submit() async {
         isSubmitting = true
         resultText = nil
         defer { isSubmitting = false }
+
+        // 前置校验必填列表字段（避免服务端 400 后再提示）。
+        guard requiredFieldsFilled else {
+            let missing = requiredListFields
+                .filter { customFieldValues[$0.id]?.isEmpty ?? true }
+                .map(\.name)
+                .joined(separator: "、")
+            resultText = "请填写必填字段：\(missing)"
+            resultIsError = true
+            return
+        }
+
         do {
             let config = try store.buildConfiguration()
             let reporter = YunxiaoBugReporter()
@@ -133,6 +263,7 @@ struct SubmitView: View {
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
                 description: description,
                 format: formatRaw == "MD" ? .markdown : .plainText,
+                customFields: customFieldValues,
                 attachments: attachments
             )
 

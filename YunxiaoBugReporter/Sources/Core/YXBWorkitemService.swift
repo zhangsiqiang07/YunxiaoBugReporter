@@ -25,15 +25,16 @@ struct YXBWorkitemService {
         return response.items
     }
 
-    /// 读取指定工作项类型的字段定义（可用于后续扩展自定义字段 UI）。
-    func fetchTypeFields(workitemTypeId: String, token: String) async throws {
+    /// 读取指定工作项类型的字段定义（用于构建自定义字段 / 必填字段选择 UI）。
+    func fetchTypeFields(workitemTypeId: String, token: String) async throws -> [YXBFieldDefinition] {
         let request = try builder.build(
             endpoint: .workitemTypeFields(workitemTypeId: workitemTypeId),
             config: config,
             method: "GET",
             token: token
         )
-        try await transport.sendWithoutResponse(request)
+        let response: YXBFieldDefinitionsResponse = try await transport.send(request, responseType: YXBFieldDefinitionsResponse.self)
+        return response.items
     }
 
     /// 查询项目成员列表（用于负责人选择 UI）。

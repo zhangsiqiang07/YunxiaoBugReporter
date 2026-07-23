@@ -150,3 +150,78 @@ struct YXBMembersResponse: Decodable {
         items = []
     }
 }
+
+/// 工作项类型字段定义中的单个选项（单选/多选/层级等）。
+public struct YXBFieldOption: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let value: String
+    public let displayValue: String
+    public let valueEn: String?
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        value = try container.decodeIfPresent(String.self, forKey: .value) ?? ""
+        displayValue = try container.decodeIfPresent(String.self, forKey: .displayValue) ?? value
+        valueEn = try container.decodeIfPresent(String.self, forKey: .valueEn)
+    }
+}
+
+/// 工作项类型字段定义。对应云效 `GetWorkitemTypeFieldConfig` 接口返回的字段配置。
+///
+/// 关键属性：
+/// - `id`：用于 `customFieldValues` 的键；
+/// - `format`：字段格式，如 `list`（单选）、`multiList`（多选）等；
+/// - `required`：创建工作项时是否必填；
+/// - `defaultValue`：默认值，通常为选项 `id`；
+/// - `options`：可选值列表，供选择 UI 使用。
+public struct YXBFieldDefinition: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let name: String
+    public let description: String?
+    public let format: String
+    public let type: String
+    public let required: Bool
+    public let showWhenCreate: Bool
+    public let defaultValue: String?
+    public let options: [YXBFieldOption]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, description, format, type, required
+        case showWhenCreate, defaultValue, options
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        description = try container.decodeIfPresent(String.self, forKey: .description)
+        format = try container.decodeIfPresent(String.self, forKey: .format) ?? ""
+        type = try container.decodeIfPresent(String.self, forKey: .type) ?? ""
+        required = try container.decodeIfPresent(Bool.self, forKey: .required) ?? false
+        showWhenCreate = try container.decodeIfPresent(Bool.self, forKey: .showWhenCreate) ?? true
+        defaultValue = try container.decodeIfPresent(String.self, forKey: .defaultValue)
+        options = try container.decodeIfPresent([YXBFieldOption].self, forKey: .options) ?? []
+    }
+}
+
+/// 工作项类型字段列表响应。兼容直接数组 / `data` / `fields` / `items` 等包络。
+struct YXBFieldDefinitionsResponse: Decodable {
+    let items: [YXBFieldDefinition]
+
+    init(from decoder: Decoder) throws {
+        if let array = try? decoder.singleValueContainer().decode([YXBFieldDefinition].self) {
+            items = array
+            return
+        }
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        let candidates = ["data", "fields", "items", "list"]
+        for key in candidates {
+            if let array = try? container.decode([YXBFieldDefinition].self, forKey: YXBAnyCodingKey(stringValue: key)) {
+                items = array
+                return
+            }
+        }
+        items = []
+    }
+}
