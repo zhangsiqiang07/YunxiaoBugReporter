@@ -22,6 +22,7 @@ struct ConfigView: View {
     @State private var isLoadingMembers = false
     @State private var isLoadingTypes = false
     @State private var loadMessage: String?
+    @FocusState private var tokenFieldFocused: Bool
 
     var body: some View {
         Form {
@@ -92,9 +93,11 @@ struct ConfigView: View {
             }
 
             Section {
-                TextField("云效访问 Token", text: $store.token, axis: .vertical)
+                TextField("云效访问 Token", text: $store.token)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .textContentType(nil)
+                    .focused($tokenFieldFocused)
                 Text("Token 以明文保存在 UserDefaults（仅用于演示，生产环境请勿如此）。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
@@ -195,6 +198,8 @@ struct ConfigView: View {
     }
 
     private func save() {
+        // 收起键盘，确保 TextField 把最新输入提交到 store.token（避免多行/聚焦态下保存旧值）。
+        tokenFieldFocused = false
         let issues = store.validationErrors()
         if !issues.isEmpty {
             errorMessages = issues

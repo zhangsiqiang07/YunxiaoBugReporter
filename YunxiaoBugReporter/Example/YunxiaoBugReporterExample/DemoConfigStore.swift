@@ -1,12 +1,12 @@
 import SwiftUI
 import YunxiaoBugReporter
 
-/// 演示用配置存储：云效连接信息存于 `UserDefaults`，Token 存于钥匙串（Keychain）。
+/// 演示用配置存储：所有配置（含 Token）以明文保存在 `UserDefaults`，便于在配置页直接查看与修改。
 ///
 /// 同时负责把存储内容转换为 SDK 的 `YXBConfiguration`：
 /// - `isConfigured` / `validationErrors()` 判断是否满足提交所需的最小信息；
-/// - `save()` 持久化；
-/// - `buildConfiguration()` 构造 SDK 配置（Token 通过 Keychain 实时读取）。
+/// - `save()` 持久化（明文写入 UserDefaults）；
+/// - `buildConfiguration()` 构造 SDK 配置，`tokenProvider` 实时返回内存中当前 Token。
 final class DemoConfigStore: ObservableObject {
     static let shared = DemoConfigStore()
 
@@ -103,7 +103,7 @@ final class DemoConfigStore: ObservableObject {
         }
     }
 
-    /// 构造 SDK 配置。`tokenProvider` 在需要 Token 时从 Keychain 读取（不在内存长期持有）。
+    /// 构造 SDK 配置。`tokenProvider` 返回内存中当前 Token（明文，仅演示用）。
     func buildConfiguration() throws -> YXBConfiguration {
         let trimmedDomain = domain.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedOrg = organizationID.trimmingCharacters(in: .whitespacesAndNewlines)
