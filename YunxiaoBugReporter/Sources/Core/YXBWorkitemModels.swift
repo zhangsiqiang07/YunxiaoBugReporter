@@ -158,6 +158,10 @@ public struct YXBFieldOption: Identifiable, Sendable, Decodable {
     public let displayValue: String
     public let valueEn: String?
 
+    private enum CodingKeys: String, CodingKey {
+        case id, value, displayValue, valueEn
+    }
+
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
