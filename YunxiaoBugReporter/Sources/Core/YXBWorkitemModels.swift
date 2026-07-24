@@ -313,3 +313,100 @@ struct YXBProjectsResponse: Decodable {
         items = []
     }
 }
+
+/// 工作项列表中的单个工作项（云效 `SearchWorkitems` 接口返回）。
+///
+/// 容错解析要点（不同接口字段名不一致）：
+/// - `id`：优先 `identifier`，回退 `id` / `workitemId` / `workitemIdentifier`；
+/// - `subject`：标题；
+/// - `statusName`：`status` 可能是 `{name}` 对象或纯字符串；
+/// - `assignedToName`：`assignedTo` 同理可能为对象或字符串；
+/// - `gmtCreate`：可能为 Int 毫秒或字符串时间戳（或空串）。
+public struct YXBWorkitem: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let subject: String
+    public let statusName: String?
+    public let assignedToName: String?
+    public let gmtCreate: Int64?
+
+    /// 仅用于取嵌套对象中的 `name` 字段（忽略其它字段）。
+    private struct NameHolder: Decodable {
+        let name: String?
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+
+        let idCandidates = ["identifier", "id", "workitemId", "workitemIdentifier"]
+        id = idCandidates.compactMap { key in
+            try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
+        }.first ?? ""
+
+        subject = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "subject"))) ?? ""
+        statusName = Self.nestedName(in: container, key: "status")
+        assignedToName = Self.nestedName(in: container, key: "assignedTo")
+
+        let createdKey = YXBAnyCodingKey(stringValue: "gmtCreate")
+        if let ms = try? container.decode(Int64.self, forKey: createdKey) {
+            gmtCreate = ms
+        } else if let s = try? container.decode(String.self, forKey: createdKey),
+                  !s.isEmpty,
+                  let v = Int64(s) {
+            gmtCreate = v
+        } else {
+            gmtCreate = nil
+        }
+    }
+
+    /// 尝试把某字段解析为 `{name}` 对象或纯字符串，返回其可读名称。
+    private static func nestedName(
+        in container: KeyedDecodingContainer<YXBAnyCodingKey>,
+        key: String
+    ) -> String? {
+        let codingKey = YXBAnyCodingKey(stringValue: key)
+        if let holder = try? container.decode(NameHolder.self, forKey: codingKey),
+           let name = holder.name, !name.isEmpty {
+            return name
+        }
+        if let s = try? container.decode(String.self, forKey: codingKey), !s.isEmpty {
+            return s
+        }
+        return nil
+    }
+
+    /// 测试 / 兜底用显式构造器。
+    public init(
+        id: String,
+        subject: String,
+        statusName: String? = nil,
+        assignedToName: String? = nil,
+        gmtCreate: Int64? = nil
+    ) {
+        self.id = id
+        self.subject = subject
+        self.statusName = statusName
+        self.assignedToName = assignedToName
+        self.gmtCreate = gmtCreate
+    }
+}
+
+/// 工作项列表响应。兼容 直接数组 / `data` / `items` / `list` / `workitems` 等包络。
+struct YXBWorkitemsResponse: Decodable {
+    let items: [YXBWorkitem]
+
+    init(from decoder: Decoder) throws {
+        if let array = try? decoder.singleValueContainer().decode([YXBWorkitem].self) {
+            items = array
+            return
+        }
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        let candidates = ["data", "items", "list", "workitems", "result"]
+        for key in candidates {
+            if let array = try? container.decode([YXBWorkitem].self, forKey: YXBAnyCodingKey(stringValue: key)) {
+                items = array
+                return
+            }
+        }
+        items = []
+    }
+}

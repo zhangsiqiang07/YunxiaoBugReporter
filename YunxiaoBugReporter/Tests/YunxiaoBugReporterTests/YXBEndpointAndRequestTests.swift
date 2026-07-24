@@ -87,6 +87,47 @@ final class YXBEndpointAndRequestTests: XCTestCase {
         XCTAssertEqual(json["perPage"] as? Int, 50)
     }
 
+    // MARK: - 4.7 工作项列表（SearchWorkitems）
+
+    private let workitemsResponse = Data(#"[{"identifier":"WI-1","subject":"s"}]"#.utf8)
+
+    func testStandardWorkitemsSearchURLAndMethod() async throws {
+        let mock = YXBMockTransport(responses: [(workitemsResponse, 200)])
+        let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
+        _ = try await service.fetchWorkitems(page: 1, perPage: 20, category: "Bug", token: "t")
+        let request = try XCTUnwrap(mock.recordedRequests.first)
+        let url = try XCTUnwrap(request.url?.absoluteString)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertTrue(url.contains("/oapi/v1/projex/organizations/org-1/workitems:search"))
+        XCTAssertFalse(url.contains("/workitems/proj-1"))
+    }
+
+    func testRegionWorkitemsSearchURL() async throws {
+        let mock = YXBMockTransport(responses: [(workitemsResponse, 200)])
+        let config = YXBTestHelpers.makeConfig(edition: .region, organizationID: nil)
+        let service = YXBWorkitemService(config: config, transport: mock)
+        _ = try await service.fetchWorkitems(page: 1, perPage: 20, category: "Bug", token: "t")
+        let recorded = mock.recordedRequests
+        let url = try XCTUnwrap(recorded.first?.url?.absoluteString)
+        XCTAssertTrue(url.contains("/oapi/v1/projex/workitems:search"))
+        XCTAssertFalse(url.contains("/organizations/"))
+    }
+
+    func testWorkitemsSearchRequestBody() async throws {
+        let mock = YXBMockTransport(responses: [(workitemsResponse, 200)])
+        let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
+        _ = try await service.fetchWorkitems(page: 2, perPage: 20, category: "Bug", token: "t")
+        let request = try XCTUnwrap(mock.recordedRequests.first)
+        let json = try XCTUnwrap(YXBTestHelpers.jsonBody(of: request))
+        XCTAssertEqual(json["category"] as? String, "Bug")
+        XCTAssertEqual(json["spaceId"] as? String, "proj-1")
+        XCTAssertEqual(json["spaceType"] as? String, "Project")
+        XCTAssertEqual(json["orderBy"] as? String, "gmtCreate")
+        XCTAssertEqual(json["sort"] as? String, "desc")
+        XCTAssertEqual(json["page"] as? Int, 2)
+        XCTAssertEqual(json["perPage"] as? Int, 20)
+    }
+
     // MARK: - 5 Token 头
 
     func testTokenHeaderIsSet() async throws {

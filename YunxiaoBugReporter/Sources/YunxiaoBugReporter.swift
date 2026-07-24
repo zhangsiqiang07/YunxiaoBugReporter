@@ -352,4 +352,37 @@ public final class YunxiaoBugReporter {
         case .partialSuccess: return "partialSuccess"
         }
     }
+
+    // MARK: - 工作项列表查询
+
+    /// 查询当前项目下的工作项列表（分页），用于「Bug 列表」展示。
+    ///
+    /// 调用云效 `SearchWorkitems` 接口，按 `gmtCreate` 倒序返回。需要 `projectID` 已配置
+    /// （即 `spaceId`），该接口依赖项目维度。
+    /// - Parameters:
+    ///   - page: 页码，从 1 开始。
+    ///   - perPage: 每页条数（0-200，默认 20）。
+    ///   - category: 工作项类型，默认 `Bug`。
+    /// - Returns: 本页工作项列表。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 PAT 缺少「项目协作 工作项 只读」权限）。
+    public func listWorkitems(page: Int = 1, perPage: Int = 20, category: String = "Bug") async throws -> [YXBWorkitem] {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchWorkitems(page: page, perPage: perPage, category: category, token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchWorkitems(page: page, perPage: perPage, category: category, token: token)
+        }
+    }
 }

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Example 入口：先是一个「进入」落地页（单一入口）；进入后若尚未配置云效信息，
-/// 强制先到配置页；否则进入主界面（Tab：提交 Bug / 云效配置）。
+/// 强制先到配置页；否则进入主界面（Tab：Bug 列表 / 云效配置）。
 struct ContentRoot: View {
     @EnvironmentObject private var store: DemoConfigStore
     @State private var entered = false
@@ -62,12 +62,16 @@ struct LandingView: View {
     }
 }
 
-/// 主界面：两个 Tab —— 提交 Bug 与 云效配置。
+/// 主界面：两个 Tab —— 当前项目的 Bug 列表（含提交入口）与 云效配置。
+///
+/// - Tab1「Bug 列表」：`BugListView` 负责展示当前项目的 Bug、分页加载、左上角切换项目、
+///   右上角「提交 Bug」按钮推入 `SubmitView`；提交不再作为独立 Tab。
+/// - Tab2「云效配置」：只读展示域名/组织ID/Token 并维护可变配置。
 struct MainTabView: View {
     var body: some View {
         TabView {
-            NavigationStack { SubmitView() }
-                .tabItem { Label("提交 Bug", systemImage: "paperplane.fill") }
+            NavigationStack { BugListView() }
+                .tabItem { Label("Bug 列表", systemImage: "list.bullet") }
 
             NavigationStack { ConfigView(mode: .normal) }
                 .tabItem { Label("云效配置", systemImage: "gearshape.fill") }

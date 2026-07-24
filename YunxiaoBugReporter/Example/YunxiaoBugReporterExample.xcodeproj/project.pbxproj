@@ -16,6 +16,7 @@
 		92C241C762161FD5F0F978AE /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B916E138293AFB058C5B52 /* ConfigView.swift */; };
 		C626ED5F0DE1C367B8AADB26 /* Pods_YunxiaoBugReporterExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */; };
 		A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF208824BC144D1EF87E2416 /* DemoConstants.swift */; };
+		1E142A7C37F3E502224903FE /* BugListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5895269494F02C3DD136595 /* BugListView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -31,6 +32,7 @@
 		C546C70965B30FCA0C77A1BD /* ContentRoot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentRoot.swift; sourceTree = "<group>"; };
 		D132D16BFC0CFB49C1DDDD5D /* DemoConfigStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConfigStore.swift; sourceTree = "<group>"; };
 		FF208824BC144D1EF87E2416 /* DemoConstants.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConstants.swift; sourceTree = "<group>"; };
+		E5895269494F02C3DD136595 /* BugListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BugListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +80,7 @@
 			children = (
 				7FB5A692A1C654634DA09884 /* AppDelegate.swift */,
 				D132D16BFC0CFB49C1DDDD5D /* DemoConfigStore.swift */,
+			E5895269494F02C3DD136595 /* BugListView.swift */,
 			FF208824BC144D1EF87E2416 /* DemoConstants.swift */,
 				C546C70965B30FCA0C77A1BD /* ContentRoot.swift */,
 				33B916E138293AFB058C5B52 /* ConfigView.swift */,
@@ -217,6 +220,7 @@
 			files = (
 				08376388D166C4646ADFF522 /* AppDelegate.swift in Sources */,
 				1941F113EB604A205FCC64EF /* DemoConfigStore.swift in Sources */,
+			1E142A7C37F3E502224903FE /* BugListView.swift in Sources */,
 			A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */,
 				1584DD27B4615B9ED04B4E86 /* ContentRoot.swift in Sources */,
 				92C241C762161FD5F0F978AE /* ConfigView.swift in Sources */,
