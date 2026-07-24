@@ -128,6 +128,37 @@ final class YXBEndpointAndRequestTests: XCTestCase {
         XCTAssertEqual(json["perPage"] as? Int, 20)
     }
 
+    // MARK: - 4.8 工作项详情（GetWorkitem）
+
+    func testGetWorkitemURLAndMethod() async throws {
+        let json = Data(#"""
+        {"identifier":"WI-X","subject":"详情","status":{"displayName":"待处理","name":"TODO"}}
+        """#.utf8)
+        let mock = YXBMockTransport(responses: [(json, 200)])
+        let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
+        let item = try await service.fetchWorkitem(workitemID: "WI-X", token: "t")
+        let request = try XCTUnwrap(mock.recordedRequests.first)
+        let url = try XCTUnwrap(request.url?.absoluteString)
+        XCTAssertEqual(request.httpMethod, "GET")
+        XCTAssertTrue(url.contains("/oapi/v1/projex/organizations/org-1/workitems/WI-X"))
+        XCTAssertEqual(item.id, "WI-X")
+        XCTAssertEqual(item.statusName, "待处理")
+    }
+
+    func testRegionGetWorkitemURL() async throws {
+        let json = Data(#"""
+        {"id":"WI-Y","subject":"详情R"}
+        """#.utf8)
+        let mock = YXBMockTransport(responses: [(json, 200)])
+        let config = YXBTestHelpers.makeConfig(edition: .region, organizationID: nil)
+        let service = YXBWorkitemService(config: config, transport: mock)
+        _ = try await service.fetchWorkitem(workitemID: "WI-Y", token: "t")
+        let recorded = mock.recordedRequests
+        let url = try XCTUnwrap(recorded.first?.url?.absoluteString)
+        XCTAssertTrue(url.contains("/oapi/v1/projex/workitems/WI-Y"))
+        XCTAssertFalse(url.contains("/organizations/"))
+    }
+
     // MARK: - 5 Token 头
 
     func testTokenHeaderIsSet() async throws {

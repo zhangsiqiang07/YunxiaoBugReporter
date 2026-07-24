@@ -164,4 +164,61 @@ final class YXBWorkitemTests: XCTestCase {
         XCTAssertNil(item.description)
         XCTAssertNil(item.gmtModified)
     }
+
+    /// 详情接口直接返回工作项对象时（projex `GetWorkitem`）能正确解码，且 `displayName` 优先。
+    func testDetailResponseDirect() throws {
+        let json = Data(#"""
+        {
+          "identifier": "WI-D1",
+          "subject": "详情直接对象",
+          "status": {"displayName":"进行中","name":"In Progress"},
+          "assignedTo": {"name":"张三"},
+          "serialNumber": "BUG-100",
+          "description": "<p>附带 <img src=\"https://x/a.png\"> 图片</p>",
+          "gmtCreate": 1700000000000,
+          "gmtModified": 1700001000000
+        }
+        """#.utf8)
+        let response = try YXBJSONCoder.decoder.decode(YXBWorkitemDetailResponse.self, from: json)
+        let item = response.item
+        XCTAssertEqual(item.id, "WI-D1")
+        XCTAssertEqual(item.statusName, "进行中")
+        XCTAssertEqual(item.assignedToName, "张三")
+        XCTAssertEqual(item.serialNumber, "BUG-100")
+        XCTAssertEqual(item.description, "<p>附带 <img src=\"https://x/a.png\"> 图片</p>")
+        XCTAssertEqual(item.gmtCreate, 1_700_000_000_000)
+        XCTAssertEqual(item.gmtModified, 1_700_001_000_000)
+    }
+
+    /// 详情接口把工作项包在 `workitem` 字段下时（旧版 `GetWorkItemInfo`）也能解码。
+    func testDetailResponseWrapped() throws {
+        let json = Data(#"""
+        {
+          "requestId": "req-1",
+          "success": true,
+          "workitem": {
+            "identifier": "WI-D2",
+            "subject": "详情包装对象",
+            "status": "打开",
+            "serialNumber": "BUG-200"
+          }
+        }
+        """#.utf8)
+        let response = try YXBJSONCoder.decoder.decode(YXBWorkitemDetailResponse.self, from: json)
+        let item = response.item
+        XCTAssertEqual(item.id, "WI-D2")
+        XCTAssertEqual(item.subject, "详情包装对象")
+        XCTAssertEqual(item.statusName, "打开")
+        XCTAssertEqual(item.serialNumber, "BUG-200")
+    }
+
+    /// 嵌套 name 对象同时含 `displayName` 与 `name` 时，优先采用 `displayName`。
+    func testDisplayNamePreferredOverName() throws {
+        let json = Data(#"""
+        [{"id":"WI-N","subject":"S","status":{"displayName":"待处理","name":"To Do"}}]
+        """#.utf8)
+        let response = try YXBJSONCoder.decoder.decode(YXBWorkitemsResponse.self, from: json)
+        let item = try XCTUnwrap(response.items.first)
+        XCTAssertEqual(item.statusName, "待处理")
+    }
 }

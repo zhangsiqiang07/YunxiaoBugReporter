@@ -364,10 +364,19 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
     public let gmtCreate: Int64?
     /// 最近更新时间（毫秒时间戳，容错 Int / 字符串 / 空串）。
     public let gmtModified: Int64?
+    /// 工作项编号（如 `DSDD-123`），详情接口返回；列表接口可能缺失。
+    public let serialNumber: String?
 
-    /// 仅用于取嵌套对象中的 `name` 字段（忽略其它字段）。
+    /// 仅用于取嵌套对象中的名称字段。云效详情接口常返回 `displayName`（更贴近界面文案），
+    /// 回退到 `name`。
     private struct NameHolder: Decodable {
+        let displayName: String?
         let name: String?
+        var resolved: String? {
+            if let displayName, !displayName.isEmpty { return displayName }
+            if let name, !name.isEmpty { return name }
+            return nil
+        }
     }
 
     public init(from decoder: Decoder) throws {
@@ -392,16 +401,19 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
 
         gmtCreate = Self.decodeMillis(in: container, forKey: "gmtCreate")
         gmtModified = Self.decodeMillis(in: container, forKey: "gmtModified")
+
+        let rawSerial = try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "serialNumber"))
+        serialNumber = (rawSerial?.isEmpty == true) ? nil : rawSerial
     }
 
-    /// 尝试把某字段解析为 `{name}` 对象或纯字符串，返回其可读名称。
+    /// 尝试把某字段解析为 `{displayName/name}` 对象或纯字符串，返回其可读名称。
     private static func nestedName(
         in container: KeyedDecodingContainer<YXBAnyCodingKey>,
         key: String
     ) -> String? {
         let codingKey = YXBAnyCodingKey(stringValue: key)
         if let holder = try? container.decode(NameHolder.self, forKey: codingKey),
-           let name = holder.name, !name.isEmpty {
+           let name = holder.resolved {
             return name
         }
         if let s = try? container.decode(String.self, forKey: codingKey), !s.isEmpty {
@@ -439,7 +451,8 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
         spaceName: String? = nil,
         description: String? = nil,
         gmtCreate: Int64? = nil,
-        gmtModified: Int64? = nil
+        gmtModified: Int64? = nil,
+        serialNumber: String? = nil
     ) {
         self.id = id
         self.subject = subject
@@ -452,6 +465,7 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
         self.description = description
         self.gmtCreate = gmtCreate
         self.gmtModified = gmtModified
+        self.serialNumber = serialNumber
     }
 }
 
@@ -473,5 +487,40 @@ struct YXBWorkitemsResponse: Decodable {
             }
         }
         items = []
+    }
+}
+
+/// 工作项详情响应（云效 `GetWorkitem`）。
+///
+/// 不同版本 / 接口返回的包络不一致：
+/// - projex `GetWorkitem` 直接返回工作项对象；
+/// - 旧版 `GetWorkItemInfo` 包在 `{"workitem": {...}}` 下（另有 `requestId` / `success` 等外层字段）。
+/// 此处做容错：先尝试常见包装键，再尝试直接作为工作项对象解码。
+struct YXBWorkitemDetailResponse: Decodable {
+    let item: YXBWorkitem
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+
+        // 1) 常见包装键（返回的对象须含有效 id 或 subject，避免误用外层空壳）。
+        for key in ["workitem", "data", "result", "item"] {
+            if let candidate = try? container.decode(YXBWorkitem.self, forKey: YXBAnyCodingKey(stringValue: key)),
+               !candidate.id.isEmpty || !candidate.subject.isEmpty {
+                item = candidate
+                return
+            }
+        }
+
+        // 2) 直接作为工作项对象解码。
+        let direct = try YXBWorkitem(from: decoder)
+        if !direct.id.isEmpty || !direct.subject.isEmpty {
+            item = direct
+            return
+        }
+
+        throw DecodingError.valueNotFound(
+            YXBWorkitem.self,
+            DecodingError.Context(codingPath: [], debugDescription: "工作项详情响应中未找到有效的工作项数据")
+        )
     }
 }

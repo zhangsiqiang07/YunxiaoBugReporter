@@ -451,4 +451,31 @@ public final class YunxiaoBugReporter {
             )
         }
     }
+
+    /// 获取单个工作项详情（用于详情页展示完整字段，如描述中的图片、编号等）。
+    ///
+    /// 调用云效 `GetWorkitem` 接口（`GET .../workitems/{id}`）。
+    /// - Parameter workitemID: 工作项 ID。
+    /// - Returns: 工作项详情。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 PAT 缺少「项目协作 工作项 只读」权限）。
+    public func getWorkitem(workitemID: String) async throws -> YXBWorkitem {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchWorkitem(workitemID: workitemID, token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchWorkitem(workitemID: workitemID, token: token)
+        }
+    }
 }

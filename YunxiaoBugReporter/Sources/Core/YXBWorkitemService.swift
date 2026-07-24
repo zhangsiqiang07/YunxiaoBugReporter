@@ -164,4 +164,23 @@ struct YXBWorkitemService {
         )
         try await transport.sendWithoutResponse(request)
     }
+
+    /// 获取单个工作项详情（用于详情页展示完整字段，如描述、编号等）。
+    ///
+    /// 调用云效 `GetWorkitem` 接口（`GET .../workitems/{id}`）。响应可能为直接对象或
+    /// 包在 `workitem` / `data` / `result` 下的对象，由 `YXBWorkitemDetailResponse` 容错解码。
+    /// - Parameters:
+    ///   - workitemID: 工作项 ID。
+    ///   - token: 云效访问令牌。
+    /// - Returns: 工作项详情。
+    func fetchWorkitem(workitemID: String, token: String) async throws -> YXBWorkitem {
+        let request = try builder.build(
+            endpoint: .getWorkitem(workitemId: workitemID),
+            config: config,
+            method: "GET",
+            token: token
+        )
+        let response: YXBWorkitemDetailResponse = try await transport.send(request, responseType: YXBWorkitemDetailResponse.self)
+        return response.item
+    }
 }
