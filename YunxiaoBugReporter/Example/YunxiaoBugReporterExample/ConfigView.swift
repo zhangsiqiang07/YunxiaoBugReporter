@@ -19,8 +19,10 @@ struct ConfigView: View {
 
     @State private var memberOptions: [YXBMember] = []
     @State private var typeOptions: [YXBWorkitemType] = []
+    @State private var projectOptions: [YXBProject] = []
     @State private var isLoadingMembers = false
     @State private var isLoadingTypes = false
+    @State private var isLoadingProjects = false
     @State private var loadMessage: String?
 
     var body: some View {
@@ -36,8 +38,22 @@ struct ConfigView: View {
                 if store.editionRaw == "standard" {
                     infoRow("组织 ID", value: DemoConstants.organizationID)
                 }
-                TextField("项目 ID", text: $store.projectID)
-                    .textInputAutocapitalization(.never)
+                // 项目：优先以组织项目列表选择（默认选中最新建立的项目）；列表为空时回退手动输入。
+                if projectOptions.isEmpty {
+                    TextField("项目 ID", text: $store.projectID)
+                        .textInputAutocapitalization(.never)
+                } else {
+                    Picker("项目", selection: $store.projectID) {
+                        ForEach(projectOptions) { project in
+                            Text(project.name.isEmpty ? project.id : project.name).tag(project.id)
+                        }
+                    }
+                    if let current = projectOptions.first(where: { $0.id == store.projectID }) {
+                        Text("当前选择：\(current.name.isEmpty ? current.id : current.name)（\(current.id)）")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
                 // 负责人：优先以成员列表选择；列表为空时回退手动输入。
                 if memberOptions.isEmpty {
@@ -90,9 +106,21 @@ struct ConfigView: View {
                     }
                 }
                 .disabled(isLoadingTypes)
+
+                // 项目：从组织项目列表加载，默认选中最新建立的项目。
+                Button {
+                    Task { await loadProjects() }
+                } label: {
+                    if isLoadingProjects {
+                        ProgressView()
+                    } else {
+                        Text(projectOptions.isEmpty ? "从组织项目列表加载" : "重新加载项目列表")
+                    }
+                }
+                .disabled(isLoadingProjects)
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型，无需填写；项目 ID 与负责人为必填；域名 / 组织 ID / Token 已写死在代码中并自动展示。")
+                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID / Token 已写死在代码中并自动展示。")
                     if let loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
@@ -137,7 +165,10 @@ struct ConfigView: View {
             Text(errorMessages.joined(separator: "\n"))
         }
         .onAppear {
-            // 已具备最小配置时，静默预拉取列表，使选择器默认可用。
+            // 项目列表接口仅依赖 organizationID，与 projectID 无关，故即使在尚未选择项目时
+            // 也静默预拉取，便于默认可用并自动选中最新建立的项目。
+            Task { await loadProjects(silent: true) }
+            // 已具备最小配置时，静默预拉取成员/类型列表，使选择器默认可用。
             guard store.isConfigured else { return }
             Task { await loadMembers(silent: true) }
             Task { await loadTypes(silent: true) }
@@ -210,6 +241,50 @@ struct ConfigView: View {
             await MainActor.run {
                 if !silent { loadMessage = "加载类型失败：\(error.localizedDescription)" }
             }
+        }
+    }
+
+    private func loadProjects(silent: Bool = false) async {
+        isLoadingProjects = true
+        defer { isLoadingProjects = false }
+        guard let reporter = makeReporterForProjects() else {
+            if !silent { await MainActor.run { loadMessage = "请先填写域名、组织 ID、Token 等必填项后再加载项目。" } }
+            return
+        }
+        do {
+            let projects = try await reporter.listOrganizationProjects()
+            await MainActor.run {
+                projectOptions = projects
+                // 尚未选择项目时，默认选中「组织内最新建立的项目」（列表已按 gmtCreate 倒序）。
+                if store.projectID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                   let newest = projects.first {
+                    store.projectID = newest.id
+                }
+                if !silent {
+                    if projects.isEmpty {
+                        loadMessage = "未获取到项目，可手动填写项目 ID。"
+                    } else {
+                        let newestName = projects.first?.name.isEmpty == false
+                            ? (projects.first?.name ?? "") : (projects.first?.id ?? "")
+                        loadMessage = "已加载 \(projects.count) 个项目，默认选中最新建立的「\(newestName)」。"
+                    }
+                }
+            }
+        } catch {
+            await MainActor.run {
+                if !silent { loadMessage = "加载项目失败：\(error.localizedDescription)" }
+            }
+        }
+    }
+
+    private func makeReporterForProjects() -> YunxiaoBugReporter? {
+        do {
+            let reporter = YunxiaoBugReporter()
+            // 项目列表接口不需要 projectID / assignedTo，这里用占位绕过 configure 校验。
+            try reporter.configure(store.buildConfigurationForProjectListing())
+            return reporter
+        } catch {
+            return nil
         }
     }
 

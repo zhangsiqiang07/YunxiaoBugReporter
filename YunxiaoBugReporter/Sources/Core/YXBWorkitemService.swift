@@ -49,6 +49,35 @@ struct YXBWorkitemService {
         return response.items
     }
 
+    /// 查询组织下的项目列表（用于「项目」选择 UI）。
+    ///
+    /// 调用云效 `SearchProjects` 接口（`POST .../projects:search`），请求体指定
+    /// `orderBy: gmtCreate, sort: desc`，服务端即按创建时间倒序返回；
+    /// 这里再兜底按 `createdAt` 降序排序一次，保证「最新建立的项目」排在最前。
+    /// - Parameter token: 云效访问令牌。
+    /// - Returns: 项目列表（已按创建时间倒序）。
+    func fetchOrganizationProjects(token: String) async throws -> [YXBProject] {
+        let body: [String: Any] = [
+            "orderBy": "gmtCreate",
+            "page": 1,
+            "perPage": 50,
+            "sort": "desc"
+        ]
+        let payload = try JSONSerialization.data(withJSONObject: body)
+        let request = try builder.buildJSON(
+            endpoint: .projects,
+            config: config,
+            token: token,
+            method: "POST",
+            body: payload
+        )
+        let response: YXBProjectsResponse = try await transport.send(request, responseType: YXBProjectsResponse.self)
+        // 兜底按创建时间降序；缺失创建时间的项排在末尾（保持服务端相对顺序）。
+        return response.items.sorted {
+            ($0.createdAt ?? 0) > ($1.createdAt ?? 0)
+        }
+    }
+
     /// 创建 Bug 工作项，返回工作项 ID。
     func createWorkitem(report: YXBBugReport, workitemTypeID: String, token: String) async throws -> String {
         let body = YXBCreateWorkitemBody(

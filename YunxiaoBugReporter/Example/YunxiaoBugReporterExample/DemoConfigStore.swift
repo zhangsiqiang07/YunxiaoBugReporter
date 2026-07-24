@@ -19,8 +19,8 @@ final class DemoConfigStore: ObservableObject {
     @Published var assignedTo = ""
     @Published var assignedToName = ""
     @Published var workitemTypeID = ""
-    @Published var cacheEnabled = false
-    @Published var cacheBackendRaw = "memory"
+    @Published var cacheEnabled = true
+    @Published var cacheBackendRaw = "userDefaults"
     @Published var workitemTypeCacheTTL = 3600.0
     @Published var tokenCacheTTL = 300.0
 
@@ -105,6 +105,29 @@ final class DemoConfigStore: ObservableObject {
             cache: cache,
             workitemTypeCacheTTL: workitemTypeCacheTTL,
             tokenCacheTTL: tokenCacheTTL
+        )
+    }
+
+    /// 构造仅用于「拉取组织项目列表」的 SDK 配置。
+    ///
+    /// `configure()` 要求 `projectID` / `assignedTo` 非空，但项目列表接口（SearchProjects）
+    /// 仅依赖 `organizationID`，与这两个字段无关。因此当它们尚未填写时，填入占位值以通过
+    /// `configure()` 校验；占位值不会被项目列表请求使用（请求路径不含 projectID）。
+    func buildConfigurationForProjectListing() throws -> YXBConfiguration {
+        let base = try buildConfiguration()
+        let safeProject = base.projectID.isEmpty ? "PLACEHOLDER_NOT_USED" : base.projectID
+        let safeAssignee = base.assignedTo.isEmpty ? "PLACEHOLDER_NOT_USED" : base.assignedTo
+        return YXBConfiguration(
+            domain: DemoConstants.domain,
+            edition: edition,
+            organizationID: DemoConstants.organizationID,
+            projectID: safeProject,
+            workitemTypeID: base.workitemTypeID,
+            assignedTo: safeAssignee,
+            tokenProvider: { DemoConstants.token },
+            cache: base.cache,
+            workitemTypeCacheTTL: base.workitemTypeCacheTTL,
+            tokenCacheTTL: base.tokenCacheTTL
         )
     }
 

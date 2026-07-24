@@ -47,6 +47,46 @@ final class YXBEndpointAndRequestTests: XCTestCase {
         XCTAssertFalse(url.contains("/organizations/"))
     }
 
+    // MARK: - 4.5 组织项目列表（SearchProjects）
+
+    func testStandardProjectsSearchURLAndMethod() async throws {
+        let response = Data(#"[{"identifier":"p1","name":"P1","gmtCreate":1700000000000}]"#.utf8)
+        let mock = YXBMockTransport(responses: [(response, 200)])
+        let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
+        _ = try await service.fetchOrganizationProjects(token: "t")
+        let recorded = mock.recordedRequests
+        let request = try XCTUnwrap(recorded.first)
+        let url = try XCTUnwrap(request.url?.absoluteString)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertTrue(url.contains("/oapi/v1/projex/organizations/org-1/projects:search"))
+        XCTAssertFalse(url.contains("/organizations/org-1/projects/proj-1"))
+    }
+
+    func testRegionProjectsSearchURL() async throws {
+        let response = Data(#"[{"identifier":"p1","name":"P1"}]"#.utf8)
+        let mock = YXBMockTransport(responses: [(response, 200)])
+        let config = YXBTestHelpers.makeConfig(edition: .region, organizationID: nil)
+        let service = YXBWorkitemService(config: config, transport: mock)
+        _ = try await service.fetchOrganizationProjects(token: "t")
+        let recorded = mock.recordedRequests
+        let url = try XCTUnwrap(recorded.first?.url?.absoluteString)
+        XCTAssertTrue(url.contains("/oapi/v1/projex/projects:search"))
+        XCTAssertFalse(url.contains("/organizations/"))
+    }
+
+    func testProjectsSearchRequestBody() async throws {
+        let response = Data(#"[{"identifier":"p1","name":"P1"}]"#.utf8)
+        let mock = YXBMockTransport(responses: [(response, 200)])
+        let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
+        _ = try await service.fetchOrganizationProjects(token: "t")
+        let request = try XCTUnwrap(mock.recordedRequests.first)
+        let json = try XCTUnwrap(YXBTestHelpers.jsonBody(of: request))
+        XCTAssertEqual(json["orderBy"] as? String, "gmtCreate")
+        XCTAssertEqual(json["sort"] as? String, "desc")
+        XCTAssertEqual(json["page"] as? Int, 1)
+        XCTAssertEqual(json["perPage"] as? Int, 50)
+    }
+
     // MARK: - 5 Token 头
 
     func testTokenHeaderIsSet() async throws {

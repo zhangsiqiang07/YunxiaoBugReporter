@@ -229,3 +229,65 @@ struct YXBFieldDefinitionsResponse: Decodable {
         items = []
     }
 }
+
+/// 组织项目模型（云效 `SearchProjects` 接口返回）。公开以便宿主构建「项目」选择器。
+///
+/// - `id`：项目唯一标识（`identifier`），即工作项接口的 `spaceId` / `projectID`；
+/// - `name`：项目名称；
+/// - `createdAt`：`gmtCreate` 创建时间戳（毫秒），用于「默认选中最新建立的项目」排序；
+/// - `customCode` / `logicalStatus`：辅助信息，可选。
+///
+/// 注意：`gmtCreate` 在不同接口可能为 `Int`（毫秒）或 `String`，这里做容错解析。
+public struct YXBProject: Identifiable, Sendable, Decodable {
+    public let id: String
+    public let name: String
+    public let createdAt: Int64?
+    public let customCode: String?
+    public let logicalStatus: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case id = "identifier"
+        case name
+        case createdAt = "gmtCreate"
+        case customCode
+        case logicalStatus
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        customCode = try container.decodeIfPresent(String.self, forKey: .customCode)
+        logicalStatus = try container.decodeIfPresent(String.self, forKey: .logicalStatus)
+        if let ms = try? container.decode(Int64.self, forKey: .createdAt) {
+            createdAt = ms
+        } else if let s = try? container.decode(String.self, forKey: .createdAt),
+                  !s.isEmpty,
+                  let v = Int64(s) {
+            createdAt = v
+        } else {
+            createdAt = nil
+        }
+    }
+}
+
+/// 组织项目列表响应。兼容 直接数组 / `data` / `projects` / `items` / `list` 等多种包络。
+struct YXBProjectsResponse: Decodable {
+    let items: [YXBProject]
+
+    init(from decoder: Decoder) throws {
+        if let array = try? decoder.singleValueContainer().decode([YXBProject].self) {
+            items = array
+            return
+        }
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        let candidates = ["data", "projects", "items", "list"]
+        for key in candidates {
+            if let array = try? container.decode([YXBProject].self, forKey: YXBAnyCodingKey(stringValue: key)) {
+                items = array
+                return
+            }
+        }
+        items = []
+    }
+}

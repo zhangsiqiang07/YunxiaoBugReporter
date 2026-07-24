@@ -9,6 +9,7 @@
 
 ## 1. 功能介绍
 
+- 查询组织下的项目列表（`listOrganizationProjects`，按创建时间倒序），便于在宿主 UI 中以「选择」方式录入项目，并默认选中最新建立的项目。
 - 查询项目下的 Bug 工作项类型，并在未显式配置 `workitemTypeID` 时自动选择：
   - `category` 为 Bug 且 `enabled` 为 true；
   - 优先 `default` 为 true 的类型；
@@ -66,7 +67,7 @@ pod install
 open YunxiaoBugReporterExample.xcworkspace   # 必须用 workspace 打开，而非 .xcodeproj
 ```
 
-打开后，「云效配置」中**域名 / 组织 ID / Token 已自动展示（写死在 `DemoConstants`，无需填写）**，只需设置版本（中心版 / Region 版）与项目 ID；「负责人」与「工作项类型」为列表型参数，可点击「从成员列表加载 / 从类型列表加载」按钮从云效拉取后以**选择**方式录入（加载失败或列表为空时回退为手动输入 ID）。保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
+打开后，「云效配置」中**域名 / 组织 ID / Token 已自动展示（写死在 `DemoConstants`，无需填写）**，只需设置版本（中心版 / Region 版）；「项目」可点击「从组织项目列表加载」从云效拉取组织内项目后以**选择**方式录入，并默认选中最新建立的项目（加载失败或列表为空时回退为手动输入项目 ID）；「负责人」与「工作项类型」为列表型参数，可点击「从成员列表加载 / 从类型列表加载」按钮从云效拉取后以**选择**方式录入（加载失败或列表为空时回退为手动输入 ID）。保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
 
 - `Example/Pods/` 与 `*.xcworkspace` 已纳入 `.gitignore`；仅 `YunxiaoBugReporterExample.xcodeproj` 入库。
 - `YunxiaoBugReporterExample.xcodeproj` 由生成脚本重新产出；向 Example 新增/删除 Swift 源文件后，需重新执行 `pod install` 让 Pods 工程重新集成。
@@ -226,11 +227,14 @@ let result = try await reporter.submit(report)
 
 ### 6.2 列表查询（用于构建选择 UI）
 
-SDK 暴露两个查询方法，便于宿主以「选择」而非「手填 ID」的方式录入列表型参数：
+SDK 暴露三个查询方法，便于宿主以「选择」而非「手填 ID」的方式录入列表型参数：
 
 ```swift
 let reporter = YunxiaoBugReporter()
 try reporter.configure(config)
+
+// 项目：返回组织下的项目列表，已按创建时间倒序（默认选中最新建立的项目）
+let projects = try await reporter.listOrganizationProjects()  // [YXBProject]
 
 // 负责人：返回项目成员（id 可直接作为 assignedTo）
 let members = try await reporter.listProjectMembers()   // [YXBMember]
@@ -239,9 +243,10 @@ let members = try await reporter.listProjectMembers()   // [YXBMember]
 let types = try await reporter.listBugTypes()            // [YXBWorkitemType]
 ```
 
+- `YXBProject`：`id`（项目唯一标识 `identifier`，即 `spaceId` / `projectID`）、`name`、`createdAt`（`gmtCreate` 毫秒时间戳，用于排序）。
 - `YXBMember`：`id`（用户标识）、`name`（展示名）。
 - `YXBWorkitemType`：`id`、`name`、`category`、`isDefault` 等，配合 `YXBWorkitemTypeSelector.select(from:)` 可自动选出默认 Bug 类型。
-- 两个方法均要求先 `configure`；Token 由 `tokenProvider` 提供，需具备「项目成员 只读」「项目协作 工作项 读写」权限。
+- `listOrganizationProjects()` 仅依赖 `organizationID`（与 `projectID` 无关），即使尚未选择项目也可调用；其余两个方法要求先 `configure`，Token 由 `tokenProvider` 提供，需具备「项目成员 只读」「项目协作 工作项 读写」权限。
 
 ---
 

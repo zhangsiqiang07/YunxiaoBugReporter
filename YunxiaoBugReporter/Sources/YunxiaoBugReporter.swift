@@ -294,6 +294,33 @@ public final class YunxiaoBugReporter {
         }
     }
 
+    /// 查询组织下的项目列表，用于构建「项目」选择器。
+    ///
+    /// 调用云效 `SearchProjects` 接口，按创建时间倒序返回，便于默认选中最新建立的项目。
+    /// 该接口仅依赖 `organizationID`，与 `projectID` 无关（因此即使尚未选择项目也可调用）。
+    /// - Returns: 项目列表（已按创建时间倒序，最新建立的排在首位）。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 PAT 缺少「项目 只读」权限）。
+    public func listOrganizationProjects() async throws -> [YXBProject] {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchOrganizationProjects(token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await workitemService.fetchOrganizationProjects(token: token)
+        }
+    }
+
     /// 查询指定工作项类型的字段定义，用于构建「必填 / 列表型自定义字段」选择器。
     /// - Parameter workitemTypeID: 工作项类型 ID。若为空，本方法会抛错；调用方可先用 `listBugTypes()` 获取并让用户选择，或使用 `config.workitemTypeID`。
     /// - Returns: 字段定义列表，包含 `id`、`name`、`format`、`required`、`defaultValue`、`options` 等。
