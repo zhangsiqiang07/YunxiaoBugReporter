@@ -245,29 +245,51 @@ public struct YXBProject: Identifiable, Sendable, Decodable {
     public let customCode: String?
     public let logicalStatus: String?
 
-    private enum CodingKeys: String, CodingKey {
-        case id = "identifier"
-        case name
-        case createdAt = "gmtCreate"
-        case customCode
-        case logicalStatus
-    }
-
+    /// 使用 `YXBAnyCodingKey` 做容错解析，避免真实接口字段名与文档不一致导致整组数据失败。
+    ///
+    /// `SearchProjects` 实际返回的项目标识字段为 `id`（而非文档中部分接口写的 `identifier`）；
+    /// `gmtCreate` 可能为 Int 毫秒、字符串时间戳或空字符串。
     public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
-        customCode = try container.decodeIfPresent(String.self, forKey: .customCode)
-        logicalStatus = try container.decodeIfPresent(String.self, forKey: .logicalStatus)
-        if let ms = try? container.decode(Int64.self, forKey: .createdAt) {
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+
+        let idCandidates = ["id", "identifier", "projectId", "projectIdentifier"]
+        id = idCandidates.compactMap { key in
+            try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
+        }.first ?? ""
+
+        let nameCandidates = ["name", "nameCn", "displayName", "projectName"]
+        name = nameCandidates.compactMap { key in
+            try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: key))
+        }.first ?? ""
+
+        customCode = try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "customCode"))
+        logicalStatus = try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "logicalStatus"))
+
+        let createdAtKey = YXBAnyCodingKey(stringValue: "gmtCreate")
+        if let ms = try? container.decode(Int64.self, forKey: createdAtKey) {
             createdAt = ms
-        } else if let s = try? container.decode(String.self, forKey: .createdAt),
+        } else if let s = try? container.decode(String.self, forKey: createdAtKey),
                   !s.isEmpty,
                   let v = Int64(s) {
             createdAt = v
         } else {
             createdAt = nil
         }
+    }
+
+    /// 测试/兜底用显式构造器。
+    public init(
+        id: String,
+        name: String,
+        createdAt: Int64? = nil,
+        customCode: String? = nil,
+        logicalStatus: String? = nil
+    ) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        self.customCode = customCode
+        self.logicalStatus = logicalStatus
     }
 }
 

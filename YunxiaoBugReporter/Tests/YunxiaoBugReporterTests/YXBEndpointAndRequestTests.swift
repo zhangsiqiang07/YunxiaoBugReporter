@@ -50,7 +50,7 @@ final class YXBEndpointAndRequestTests: XCTestCase {
     // MARK: - 4.5 组织项目列表（SearchProjects）
 
     func testStandardProjectsSearchURLAndMethod() async throws {
-        let response = Data(#"[{"identifier":"p1","name":"P1","gmtCreate":1700000000000}]"#.utf8)
+        let response = Data(#"[{"id":"p1","name":"P1","gmtCreate":1700000000000}]"#.utf8)
         let mock = YXBMockTransport(responses: [(response, 200)])
         let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
         _ = try await service.fetchOrganizationProjects(token: "t")
@@ -63,7 +63,7 @@ final class YXBEndpointAndRequestTests: XCTestCase {
     }
 
     func testRegionProjectsSearchURL() async throws {
-        let response = Data(#"[{"identifier":"p1","name":"P1"}]"#.utf8)
+        let response = Data(#"[{"id":"p1","name":"P1"}]"#.utf8)
         let mock = YXBMockTransport(responses: [(response, 200)])
         let config = YXBTestHelpers.makeConfig(edition: .region, organizationID: nil)
         let service = YXBWorkitemService(config: config, transport: mock)
@@ -75,7 +75,7 @@ final class YXBEndpointAndRequestTests: XCTestCase {
     }
 
     func testProjectsSearchRequestBody() async throws {
-        let response = Data(#"[{"identifier":"p1","name":"P1"}]"#.utf8)
+        let response = Data(#"[{"id":"p1","name":"P1"}]"#.utf8)
         let mock = YXBMockTransport(responses: [(response, 200)])
         let service = YXBWorkitemService(config: YXBTestHelpers.makeConfig(edition: .standard), transport: mock)
         _ = try await service.fetchOrganizationProjects(token: "t")
