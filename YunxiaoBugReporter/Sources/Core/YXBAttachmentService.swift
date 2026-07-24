@@ -78,7 +78,14 @@ struct YXBAttachmentService: Sendable {
                 body: body
             )
             let response: YXBAttachmentCreateResponse = try await transport.send(request, responseType: YXBAttachmentCreateResponse.self)
-            return YXBAttachmentResult(fileName: attachment.fileName, success: true, attachmentID: response.id)
+            return YXBAttachmentResult(
+                fileName: attachment.fileName,
+                success: true,
+                attachmentID: response.id,
+                embedHTML: response.embedHTML,
+                embedMarkdown: response.embedMarkdown,
+                embedURL: response.embedURL
+            )
         } catch {
             let yxb: YXBError = (error as? YXBError) ?? .underlying(String(describing: error))
             return YXBAttachmentResult(fileName: attachment.fileName, success: false, attachmentID: nil, error: yxb)

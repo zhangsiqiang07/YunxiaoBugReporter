@@ -39,13 +39,56 @@ struct BugDetailView: View {
                     }
                 }
 
-                // 描述
+                // 描述（含图片渲染）
                 if let description = item.description, !description.isEmpty {
+                    let imageURLs = extractImageURLs(from: description)
+                    let bodyText = textWithoutImages(description)
                     detailSection("描述") {
-                        Text(description)
-                            .font(.body)
-                            .foregroundStyle(.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if !bodyText.isEmpty {
+                            if let attributed = try? AttributedString(html: bodyText) {
+                                Text(attributed)
+                                    .font(.body)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            } else {
+                                Text(bodyText)
+                                    .font(.body)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+
+                        if !imageURLs.isEmpty {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(imageURLs, id: \.absoluteString) { url in
+                                    AsyncImage(url: url) { phase in
+                                        switch phase {
+                                        case .empty:
+                                            HStack {
+                                                Spacer()
+                                                ProgressView()
+                                                Spacer()
+                                            }
+                                            .frame(minHeight: 120)
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        case .failure:
+                                            HStack {
+                                                Spacer()
+                                                Image(systemName: "photo.fill")
+                                                    .font(.largeTitle)
+                                                    .foregroundStyle(.secondary)
+                                                Spacer()
+                                            }
+                                            .frame(minHeight: 120)
+                                        @unknown default:
+                                            EmptyView()
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -113,5 +156,50 @@ struct BugDetailView: View {
         formatter.timeStyle = .short
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
+    }
+
+    // MARK: - 描述中的图片解析
+
+    /// 从描述文本中提取图片地址（支持 HTML `<img src="...">` 与 Markdown `![](url)`）。
+    private func extractImageURLs(from text: String) -> [URL] {
+        var urls: [URL] = []
+
+        let htmlPattern = #"<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>"#
+        if let regex = try? NSRegularExpression(pattern: htmlPattern, options: .caseInsensitive) {
+            let range = NSRange(text.startIndex..., in: text)
+            for match in regex.matches(in: text, range: range) {
+                if let r = Range(match.range(at: 1), in: text),
+                   let url = URL(string: String(text[r])) {
+                    urls.append(url)
+                }
+            }
+        }
+
+        let mdPattern = #"!\[[^\]]*\]\(([^)]+)\)"#
+        if let regex = try? NSRegularExpression(pattern: mdPattern, options: []) {
+            let range = NSRange(text.startIndex..., in: text)
+            for match in regex.matches(in: text, range: range) {
+                if let r = Range(match.range(at: 1), in: text),
+                   let url = URL(string: String(text[r])) {
+                    urls.append(url)
+                }
+            }
+        }
+
+        return urls
+    }
+
+    /// 去掉描述中的图片标签，得到用于纯文本 / AttributedString 展示的正文。
+    private func textWithoutImages(_ text: String) -> String {
+        var result = text
+        if let regex = try? NSRegularExpression(pattern: #"<img\b[^>]*>"#, options: .caseInsensitive) {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+        }
+        if let regex = try? NSRegularExpression(pattern: #"!\[[^\]]*\]\([^)]+\)"#, options: []) {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+        }
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

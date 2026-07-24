@@ -71,8 +71,19 @@ struct YXBWorkitemCreateResponse: Decodable {
 }
 
 /// 上传附件接口的响应。兼容 `id` / `attachmentId` / `fileId`。
+///
+/// 云效 `CreateWorkitemAttachment` 还会返回用于把图片嵌入工作项描述的片段：
+/// - `embedHtml`：RICHTEXT 模式下可直接拼接到描述中的 `<img>` 片段；
+/// - `embedMarkdown`：MARKDOWN 模式下的图片片段；
+/// - `embedUrl`：永久代理地址（不会过期），可手动拼成 `<img>` / `![]()`；
+/// - `url`：临时签名下载地址（会过期，仅用于下载，不适合长期嵌入）。
 struct YXBAttachmentCreateResponse: Decodable {
     let id: String
+    let embedHTML: String?
+    let embedMarkdown: String?
+    let embedURL: String?
+    let url: String?
+    let name: String?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
@@ -88,6 +99,19 @@ struct YXBAttachmentCreateResponse: Decodable {
                 DecodingError.Context(codingPath: [], debugDescription: "云效上传附件响应缺少 ID 字段")
             )
         }
+        embedHTML = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "embedHtml"))).nilIfEmpty
+        embedMarkdown = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "embedMarkdown"))).nilIfEmpty
+        embedURL = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "embedUrl"))).nilIfEmpty
+        url = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "url"))).nilIfEmpty
+        name = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "name"))).nilIfEmpty
+    }
+}
+
+/// 容错工具：把空字符串的 Optional<String> 归并为 nil。
+private extension Optional where Wrapped == String {
+    var nilIfEmpty: String? {
+        guard let value = self, !value.isEmpty else { return nil }
+        return value
     }
 }
 

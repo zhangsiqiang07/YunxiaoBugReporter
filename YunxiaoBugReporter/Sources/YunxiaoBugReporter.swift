@@ -154,6 +154,30 @@ public final class YunxiaoBugReporter {
                 logger?.log(level: .error, message: "[YunxiaoBugReporter] 附件上传失败: \(result.fileName)")
             }
         }
+
+        // 把上传成功的图片片段嵌入工作项描述（best-effort：失败不影响已成功的提交，
+        // 图片仍作为独立附件存在）。这样描述中即可直接显示截图。
+        if let embedded = YXBDescriptionEmbedder.embed(
+            attachments: attachmentResults,
+            format: report.format,
+            into: report.description
+        ) {
+            do {
+                try await workitemService.updateWorkitemDescription(
+                    workitemID: workitemID,
+                    description: embedded,
+                    format: report.format,
+                    token: token
+                )
+                logger?.log(level: .info, message: "[YunxiaoBugReporter] 已将图片嵌入工作项描述")
+            } catch {
+                logger?.log(
+                    level: .warn,
+                    message: "[YunxiaoBugReporter] 嵌入图片到描述失败（附件已上传，可忽略）：\(error)"
+                )
+            }
+        }
+
         logger?.log(level: .info, message: "[YunxiaoBugReporter] 提交完成, status=\(statusDescription(status))")
 
         return YXBSubmitResult(
@@ -383,6 +407,48 @@ public final class YunxiaoBugReporter {
             }
             let token = try await fetchToken(config: config, logger: logger)
             return try await workitemService.fetchWorkitems(page: page, perPage: perPage, category: category, token: token)
+        }
+    }
+
+    /// 更新工作项的描述内容（例如把已上传成功的图片片段嵌入描述）。
+    ///
+    /// - Parameters:
+    ///   - workitemID: 工作项 ID。
+    ///   - description: 新的描述内容。
+    ///   - format: 描述格式，须与创建时一致（默认 `.plainText`，对应云效 `RICHTEXT`）。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误。
+    public func updateWorkitemDescription(
+        workitemID: String,
+        description: String,
+        format: YXBDescriptionFormat = .plainText
+    ) async throws {
+        guard let config = config, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            try await workitemService.updateWorkitemDescription(
+                workitemID: workitemID,
+                description: description,
+                format: format,
+                token: token
+            )
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            try await workitemService.updateWorkitemDescription(
+                workitemID: workitemID,
+                description: description,
+                format: format,
+                token: token
+            )
         }
     }
 }

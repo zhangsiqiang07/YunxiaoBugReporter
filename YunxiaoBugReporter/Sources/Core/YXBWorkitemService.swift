@@ -134,4 +134,34 @@ struct YXBWorkitemService {
         let response: YXBWorkitemCreateResponse = try await transport.send(request, responseType: YXBWorkitemCreateResponse.self)
         return response.id
     }
+
+    /// 更新工作项描述（用于把上传成功的图片片段嵌入描述）。
+    ///
+    /// 调用云效 `UpdateWorkitem` 接口（`PUT .../workitems/{id}`），请求体为
+    /// `{ "description": ..., "formatType": "RICHTEXT" | "MARKDOWN" }`。该接口无响应体。
+    /// - Parameters:
+    ///   - workitemID: 工作项 ID。
+    ///   - description: 新的描述内容（已包含嵌入的图片片段）。
+    ///   - format: 描述格式，决定 `formatType` 取值，须与创建时一致。
+    ///   - token: 云效访问令牌。
+    func updateWorkitemDescription(
+        workitemID: String,
+        description: String,
+        format: YXBDescriptionFormat,
+        token: String
+    ) async throws {
+        let body: [String: Any] = [
+            "description": description,
+            "formatType": format.apiValue
+        ]
+        let payload = try JSONSerialization.data(withJSONObject: body)
+        let request = try builder.buildJSON(
+            endpoint: .updateWorkitem(workitemId: workitemID),
+            config: config,
+            token: token,
+            method: "PUT",
+            body: payload
+        )
+        try await transport.sendWithoutResponse(request)
+    }
 }
