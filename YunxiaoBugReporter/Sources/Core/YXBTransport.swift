@@ -14,4 +14,12 @@ public protocol YXBTransport: Sendable {
     func sendWithoutResponse(
         _ request: URLRequest
     ) async throws
+
+    /// 下载二进制数据（如工作项描述中的图片），不解码为模型，直接返回原始 `Data`。
+    ///
+    /// 复用与 `send` 相同的唯一 HTTP 出口（日志、错误解析、状态码校验均一致），
+    /// 便于在需要自定义头（如 `x-yunxiao-token`）下载资源时使用。
+    func download(
+        _ request: URLRequest
+    ) async throws -> Data
 }

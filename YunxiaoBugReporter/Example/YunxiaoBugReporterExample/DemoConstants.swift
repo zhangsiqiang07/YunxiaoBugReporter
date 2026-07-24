@@ -15,5 +15,5 @@ enum DemoConstants {
 
     /// 云效访问 Token。明文写死仅用于演示。
     /// TODO: 替换为你的实际云效访问 Token。
-    static let token = "在此填入你的云效访问 Token"
+    static let token = "YOUR_YUNXIAO_TOKEN"
 }

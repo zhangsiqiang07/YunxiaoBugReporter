@@ -35,6 +35,10 @@ final class YXBHTTPClient: YXBTransport {
         _ = try await perform(request)
     }
 
+    func download(_ request: URLRequest) async throws -> Data {
+        try await perform(request)
+    }
+
     private func perform(_ request: URLRequest) async throws -> Data {
         let started = Date()
         logger?.log(level: .info, message: "[YunxiaoBugReporter] → \(describeRequest(request))")

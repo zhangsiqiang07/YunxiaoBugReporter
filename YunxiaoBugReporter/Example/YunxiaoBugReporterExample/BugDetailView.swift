@@ -82,36 +82,10 @@ struct BugDetailView: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        if !parsed.imageURLs.isEmpty {
+                        if !parsed.imageURLs.isEmpty, let reporter = try? makeReporter() {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(parsed.imageURLs, id: \.absoluteString) { url in
-                                    AsyncImage(url: url) { phase in
-                                        switch phase {
-                                        case .empty:
-                                            HStack {
-                                                Spacer()
-                                                ProgressView()
-                                                Spacer()
-                                            }
-                                            .frame(minHeight: 120)
-                                        case .success(let image):
-                                            image
-                                                .resizable()
-                                                .scaledToFit()
-                                                .clipShape(RoundedRectangle(cornerRadius: 10))
-                                        case .failure:
-                                            HStack {
-                                                Spacer()
-                                                Image(systemName: "photo.fill")
-                                                    .font(.largeTitle)
-                                                    .foregroundStyle(.secondary)
-                                                Spacer()
-                                            }
-                                            .frame(minHeight: 120)
-                                        @unknown default:
-                                            EmptyView()
-                                        }
-                                    }
+                                    AuthImageView(url: url, reporter: reporter)
                                 }
                             }
                         }

@@ -45,6 +45,15 @@ final class YXBMockTransport: YXBTransport {
         try validate(status: status, data: data)
     }
 
+    func download(_ request: URLRequest) async throws -> Data {
+        let (data, status) = syncQueue.sync { () -> (Data, Int) in
+            recorded.append(request)
+            return next(request)
+        }
+        try validate(status: status, data: data)
+        return data
+    }
+
     /// 调用方须持有 `syncQueue`。
     private func next(_ request: URLRequest) -> (Data, Int) {
         if let handler = handler {

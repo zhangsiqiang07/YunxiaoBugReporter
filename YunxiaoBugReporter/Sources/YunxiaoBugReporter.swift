@@ -452,6 +452,49 @@ public final class YunxiaoBugReporter {
         }
     }
 
+    // MARK: - 图片下载（详情页描述内嵌图片）
+
+    /// 下载工作项描述中包含的图片数据（带鉴权）。
+    ///
+    /// 云效工作项描述里的图片地址（形如
+    /// `https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=...`）
+    /// 需要 `x-yunxiao-token` 鉴权头才能访问；SwiftUI 的 `AsyncImage` 无法附加自定义头，
+    /// 因此由 SDK 代发请求并返回原始图片字节，调用方再用 `UIImage(data:)` 展示。
+    ///
+    /// - Parameter url: 图片地址（绝对 URL）。
+    /// - Returns: 图片二进制数据。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误（如 403/404 表示图片无权访问或已失效）。
+    public func downloadImage(at url: URL) async throws -> Data {
+        guard let config = config, let transport = transport else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+
+        func performWith(token: String) async throws -> Data {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            // 文件接口依赖该鉴权头；`AsyncImage` 无法注入，故在此统一附加。
+            request.setValue(token, forHTTPHeaderField: "x-yunxiao-token")
+            request.setValue("image/*,application/octet-stream,*/*", forHTTPHeaderField: "Accept")
+            return try await transport.download(request)
+        }
+
+        do {
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await performWith(token: token)
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 下载图片收到 401，疑似 Token 失效/已更换；清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await fetchToken(config: config, logger: logger)
+            return try await performWith(token: token)
+        }
+    }
+
     /// 获取单个工作项详情（用于详情页展示完整字段，如描述中的图片、编号等）。
     ///
     /// 调用云效 `GetWorkitem` 接口（`GET .../workitems/{id}`）。
