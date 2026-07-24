@@ -74,18 +74,17 @@ struct BugDetailView: View {
 
                 // 描述（含图片渲染）
                 if let description = displayed.description, !description.isEmpty {
-                    let imageURLs = extractImageURLs(from: description)
-                    let bodyText = textWithoutImages(description)
+                    let parsed = YXBDescriptionParser.parse(description)
                     detailSection("描述") {
-                        if !bodyText.isEmpty {
-                            Text(bodyText)
+                        if !parsed.text.isEmpty {
+                            Text(parsed.text)
                                 .font(.body)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
-                        if !imageURLs.isEmpty {
+                        if !parsed.imageURLs.isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
-                                ForEach(imageURLs, id: \.absoluteString) { url in
+                                ForEach(parsed.imageURLs, id: \.absoluteString) { url in
                                     AsyncImage(url: url) { phase in
                                         switch phase {
                                         case .empty:
@@ -222,58 +221,4 @@ struct BugDetailView: View {
         return formatter.string(from: date)
     }
 
-    // MARK: - 描述中的图片解析
-
-    /// 从描述文本中提取图片地址（支持 HTML `<img src="...">` 与 Markdown `![](url)`）。
-    private func extractImageURLs(from text: String) -> [URL] {
-        var urls: [URL] = []
-
-        let htmlPattern = #"<img\b[^>]*\bsrc\s*=\s*["']([^"']+)["'][^>]*>"#
-        if let regex = try? NSRegularExpression(pattern: htmlPattern, options: .caseInsensitive) {
-            let range = NSRange(text.startIndex..., in: text)
-            for match in regex.matches(in: text, range: range) {
-                if let r = Range(match.range(at: 1), in: text),
-                   let url = URL(string: String(text[r])) {
-                    urls.append(url)
-                }
-            }
-        }
-
-        let mdPattern = #"!\[[^\]]*\]\(([^)]+)\)"#
-        if let regex = try? NSRegularExpression(pattern: mdPattern, options: []) {
-            let range = NSRange(text.startIndex..., in: text)
-            for match in regex.matches(in: text, range: range) {
-                if let r = Range(match.range(at: 1), in: text),
-                   let url = URL(string: String(text[r])) {
-                    urls.append(url)
-                }
-            }
-        }
-
-        return urls
-    }
-
-    /// 去掉描述中的图片标签与 Markdown 图片语法，并清除其余 HTML 标签，
-    /// 得到用于纯文本展示的正文（图片已由 `extractImageURLs` 单独提取渲染）。
-    private func textWithoutImages(_ text: String) -> String {
-        var result = text
-        // 1. 移除 HTML 图片标签
-        if let regex = try? NSRegularExpression(pattern: #"<img\b[^>]*>"#, options: .caseInsensitive) {
-            let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
-        }
-        // 2. 移除 Markdown 图片语法 ![alt](url)
-        if let regex = try? NSRegularExpression(pattern: #"!\[[^\]]*\]\([^)]+\)"#, options: []) {
-            let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
-        }
-        // 3. 移除其余 HTML 标签（如 <p>、<br>、<div> 等），避免把标签当作正文显示
-        if let regex = try? NSRegularExpression(pattern: #"<[^>]+>"#, options: .caseInsensitive) {
-            let range = NSRange(result.startIndex..., in: result)
-            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
-        }
-        // 4. 压缩多余空行
-        result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
-        return result.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }
