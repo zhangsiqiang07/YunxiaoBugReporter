@@ -133,6 +133,9 @@ final class DemoConfigStore: ObservableObject {
         let base = try buildConfiguration()
         let safeProject = base.projectID.isEmpty ? "PLACEHOLDER_NOT_USED" : base.projectID
         let safeAssignee = base.assignedTo.isEmpty ? "PLACEHOLDER_NOT_USED" : base.assignedTo
+        // 与 buildConfiguration 一致：先把已解析 Token 取到本地值（String 可 Sendable），
+        // 避免了直接捕获 self 或调用 `async throws` 的 base.tokenProvider 闭包。
+        let resolvedToken = self.resolvedToken
         return YXBConfiguration(
             domain: DemoConstants.domain,
             edition: edition,
@@ -140,7 +143,7 @@ final class DemoConfigStore: ObservableObject {
             projectID: safeProject,
             workitemTypeID: base.workitemTypeID,
             assignedTo: safeAssignee,
-            tokenProvider: { base.tokenProvider() },
+            tokenProvider: { resolvedToken },
             cache: base.cache,
             workitemTypeCacheTTL: base.workitemTypeCacheTTL,
             tokenCacheTTL: base.tokenCacheTTL
