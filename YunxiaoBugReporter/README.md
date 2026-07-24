@@ -53,7 +53,7 @@ pod install
 - 启动后只有一个 **「进入」** 落地页（Landing）；
 - 若尚未配置云效信息，**每次进入都会先跳转到「云效配置」页**（强制配置，无法返回跳过）；
 - 配置完成后进入主界面，包含 **「提交 Bug」** 与 **「云效配置」** 两个 Tab；
-- Token 以**明文保存在 `UserDefaults`**（仅用于演示，配置页直接显示当前 Token；生产环境的宿主 App 仍应通过 `tokenProvider` 从 Keychain / 内部服务动态获取，SDK 不负责持久化）；
+- 演示 App 中，**域名 / 组织 ID / Token 已写死在 `DemoConstants` 并在配置页只读展示**（无需手动填写；Token 明文仅用于演示，生产环境的宿主 App 应通过 `tokenProvider` 从 Keychain / 内部服务动态获取，SDK 不负责持久化）；
 - 配置页可选开启 **结果缓存**（内存 / UserDefaults 两种后端，可分别设置 TTL）。
 
 > SDK 自身仍支持 iOS 15.0+；仅 Example 演示 App 因使用了 `NavigationStack` 等 iOS 16 API，要求 iOS 16.0+。
@@ -66,7 +66,7 @@ pod install
 open YunxiaoBugReporterExample.xcworkspace   # 必须用 workspace 打开，而非 .xcodeproj
 ```
 
-打开后，在「云效配置」中填写：服务域名、版本（中心版 / Region 版）、组织 ID（中心版必填）、项目 ID、访问 Token；「负责人」与「工作项类型」为列表型参数，可点击「从成员列表加载 / 从类型列表加载」按钮从云效拉取后以**选择**方式录入（加载失败或列表为空时回退为手动输入 ID）。保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
+打开后，「云效配置」中**域名 / 组织 ID / Token 已自动展示（写死在 `DemoConstants`，无需填写）**，只需设置版本（中心版 / Region 版）与项目 ID；「负责人」与「工作项类型」为列表型参数，可点击「从成员列表加载 / 从类型列表加载」按钮从云效拉取后以**选择**方式录入（加载失败或列表为空时回退为手动输入 ID）。保存后回到「提交 Bug」即可填写标题/描述、选择截图并一键上报。
 
 - `Example/Pods/` 与 `*.xcworkspace` 已纳入 `.gitignore`；仅 `YunxiaoBugReporterExample.xcodeproj` 入库。
 - `YunxiaoBugReporterExample.xcodeproj` 由生成脚本重新产出；向 Example 新增/删除 Swift 源文件后，需重新执行 `pod install` 让 Pods 工程重新集成。

@@ -22,21 +22,19 @@ struct ConfigView: View {
     @State private var isLoadingMembers = false
     @State private var isLoadingTypes = false
     @State private var loadMessage: String?
-    @FocusState private var tokenFieldFocused: Bool
 
     var body: some View {
         Form {
             Section {
-                TextField("服务域名", text: $store.domain)
-                    .keyboardType(.URL)
-                    .textInputAutocapitalization(.never)
+                // 域名、组织 ID 写死在 DemoConstants，自动只读展示，无需手动填写。
+                infoRow("服务域名", value: DemoConstants.domain)
                 Picker("版本", selection: $store.editionRaw) {
                     Text("中心版").tag("standard")
                     Text("Region 版").tag("region")
                 }
                 .pickerStyle(.segmented)
                 if store.editionRaw == "standard" {
-                    TextField("组织 ID", text: $store.organizationID)
+                    infoRow("组织 ID", value: DemoConstants.organizationID)
                 }
                 TextField("项目 ID", text: $store.projectID)
                     .textInputAutocapitalization(.never)
@@ -94,7 +92,7 @@ struct ConfigView: View {
                 .disabled(isLoadingTypes)
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型，无需填写；其余字段均为必填。")
+                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型，无需填写；项目 ID 与负责人为必填；域名 / 组织 ID / Token 已写死在代码中并自动展示。")
                     if let loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
@@ -105,19 +103,12 @@ struct ConfigView: View {
             }
 
             Section {
-                TextField("云效访问 Token", text: $store.token)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .textContentType(nil)
-                    .focused($tokenFieldFocused)
-                Text("Token 以明文保存在 UserDefaults（仅用于演示，生产环境请勿如此）。")
+                // Token 写死在 DemoConstants，自动只读展示；需要变更时直接改代码常量。
+                infoRow("云效访问 Token", value: DemoConstants.token, lines: 3)
+                Text("Token 写死在 DemoConstants（明文仅用于演示，生产环境请勿如此）；拉取成员/类型列表需要该 Token 具备对应只读权限。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-            } header: { Text("访问凭证") } footer: {
-                Text("当前已保存的 Token 会显示在此处；拉取成员/类型列表需要该 Token 具备对应只读权限。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
+            } header: { Text("访问凭证") }
 
             Section("结果缓存（可选）") {
                 Toggle("启用缓存", isOn: $store.cacheEnabled)
@@ -162,6 +153,19 @@ struct ConfigView: View {
             return reporter
         } catch {
             return nil
+        }
+    }
+
+    /// 只读信息行：左侧标题，右侧值（右对齐、可折行）。用于展示写死在代码中的配置。
+    private func infoRow(_ title: String, value: String, lines: Int = 1) -> some View {
+        HStack(alignment: .top) {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(lines)
+                .minimumScaleFactor(0.5)
         }
     }
 
@@ -210,8 +214,6 @@ struct ConfigView: View {
     }
 
     private func save() {
-        // 收起键盘，确保 TextField 把最新输入提交到 store.token（避免多行/聚焦态下保存旧值）。
-        tokenFieldFocused = false
         let issues = store.validationErrors()
         if !issues.isEmpty {
             errorMessages = issues
