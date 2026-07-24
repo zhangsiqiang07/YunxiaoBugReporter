@@ -21,15 +21,65 @@ struct SubmitView: View {
     @State private var isLoadingFields = false
     @State private var fieldLoadError: String?
 
+    // MARK: - 负责人（成员）字段
+    @State private var memberOptions: [YXBMember] = []
+    @State private var isLoadingMembers = false
+    @State private var memberLoadError: String?
+
     var body: some View {
         Form {
             Section("指派给") {
-                HStack {
-                    Text("负责人")
-                    Spacer()
-                    Text(assigneeDisplay)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.trailing)
+                if isLoadingMembers {
+                    HStack {
+                        Text("加载成员中…")
+                        Spacer()
+                        ProgressView()
+                    }
+                } else if memberOptions.isEmpty {
+                    // 成员列表为空（未配置 / 拉取失败）时，回退为手动输入用户 ID。
+                    TextField("负责人用户 ID", text: $store.assignedTo)
+                        .textInputAutocapitalization(.never)
+                        .onChange(of: store.assignedTo) { _ in
+                            // 手动输入无法获知姓名，清空展示名并持久化。
+                            store.assignedToName = ""
+                            store.save()
+                        }
+                    if let message = memberLoadError {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.orange)
+                    }
+                } else {
+                    // 成员列表可用时，以「姓名」展示并可修改负责人（选中后以 ID 提交）。
+                    Picker("负责人", selection: $store.assignedTo) {
+                        ForEach(memberOptions) { member in
+                            Text(member.name).tag(member.id)
+                        }
+                    }
+                    .onChange(of: store.assignedTo) { newValue in
+                        store.assignedToName = memberOptions.first(where: { $0.id == newValue })?.name ?? ""
+                        // 修改负责人后立即持久化，使配置页与下次启动保持一致。
+                        store.save()
+                    }
+                    if !store.assignedToName.isEmpty {
+                        Text("当前选择：\(store.assignedToName)（\(store.assignedTo)）")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // 成员列表已加载或上次加载失败时，提供「重新加载」入口。
+                if !memberOptions.isEmpty || memberLoadError != nil {
+                    Button {
+                        Task { await loadMembers() }
+                    } label: {
+                        if isLoadingMembers {
+                            ProgressView()
+                        } else {
+                            Text("重新加载成员列表")
+                        }
+                    }
+                    .disabled(isLoadingMembers)
                 }
             }
 
@@ -110,17 +160,8 @@ struct SubmitView: View {
         .onAppear {
             guard !isLoadingFields else { return }
             Task { await loadFields() }
+            Task { await loadMembers() }
         }
-    }
-
-    /// 负责人展示文案：优先显示姓名，并附上用户 ID（提交接口需要 ID）。
-    private var assigneeDisplay: String {
-        let id = store.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !id.isEmpty else { return "未配置" }
-        if store.assignedToName.isEmpty {
-            return id
-        }
-        return "\(store.assignedToName)（\(id)）"
     }
 
     /// 必填且为列表（单选/多选）的字段。
@@ -176,6 +217,43 @@ struct SubmitView: View {
             get: { customFieldValues[fieldID] ?? "" },
             set: { customFieldValues[fieldID] = $0.isEmpty ? nil : $0 }
         )
+    }
+
+    // MARK: - 成员列表（负责人）加载
+
+    /// 用「成员列表专用」配置构造 reporter：即使尚未选择负责人（assignedTo 为空）也能拉取成员。
+    private func makeReporterForMembers() -> YunxiaoBugReporter? {
+        do {
+            let reporter = YunxiaoBugReporter()
+            try reporter.configure(store.buildConfigurationForMemberListing())
+            return reporter
+        } catch {
+            return nil
+        }
+    }
+
+    /// 拉取当前项目的成员列表，用于「负责人」选择器按姓名展示与选择。
+    private func loadMembers() async {
+        isLoadingMembers = true
+        memberLoadError = nil
+        defer { isLoadingMembers = false }
+        guard let reporter = makeReporterForMembers() else {
+            await MainActor.run {
+                memberLoadError = "请先在「云效配置」中填写项目与 Token 后再加载成员。"
+            }
+            return
+        }
+        do {
+            let members = try await reporter.listProjectMembers()
+            await MainActor.run {
+                memberOptions = members
+                memberLoadError = members.isEmpty ? "未获取到成员，可手动填写负责人 ID。" : nil
+            }
+        } catch {
+            await MainActor.run {
+                memberLoadError = "加载成员失败：\(error.localizedDescription)"
+            }
+        }
     }
 
     /// 拉取当前工作项类型的字段定义，并自动为必填列表字段填入默认值。

@@ -150,6 +150,29 @@ final class DemoConfigStore: ObservableObject {
         )
     }
 
+    /// 构造仅用于「拉取项目成员列表」的 SDK 配置。
+    ///
+    /// 成员接口为项目级，依赖 `projectID`；但查询成员本身并不需要 `assignedTo`。
+    /// 因此当 `assignedTo` 尚未填写时填入占位值以通过 `configure()` 校验，
+    /// 该占位值不会被成员请求使用（请求路径不含 assignedTo）。
+    func buildConfigurationForMemberListing() throws -> YXBConfiguration {
+        let base = try buildConfiguration()
+        let safeAssignee = base.assignedTo.isEmpty ? "PLACEHOLDER_NOT_USED" : base.assignedTo
+        let resolvedToken = self.resolvedToken
+        return YXBConfiguration(
+            domain: DemoConstants.domain,
+            edition: edition,
+            organizationID: DemoConstants.organizationID,
+            projectID: base.projectID,
+            workitemTypeID: base.workitemTypeID,
+            assignedTo: safeAssignee,
+            tokenProvider: { resolvedToken },
+            cache: base.cache,
+            workitemTypeCacheTTL: base.workitemTypeCacheTTL,
+            tokenCacheTTL: base.tokenCacheTTL
+        )
+    }
+
     private struct PersistedConfig: Codable {
         var editionRaw: String
         var projectID: String
