@@ -201,14 +201,10 @@ struct BugListView: View {
         return "暂无 Bug"
     }
 
-    private func makeReporter() -> YunxiaoBugReporter? {
-        do {
-            let reporter = YunxiaoBugReporter()
-            try reporter.configure(store.buildConfiguration())
-            return reporter
-        } catch {
-            return nil
-        }
+    private func makeReporter() throws -> YunxiaoBugReporter {
+        let reporter = YunxiaoBugReporter()
+        try reporter.configure(store.buildConfiguration())
+        return reporter
     }
 
     private func makeReporterForProjects() throws -> YunxiaoBugReporter {
