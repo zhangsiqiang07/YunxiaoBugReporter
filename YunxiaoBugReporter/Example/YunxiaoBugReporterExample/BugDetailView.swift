@@ -45,15 +45,9 @@ struct BugDetailView: View {
                     let bodyText = textWithoutImages(description)
                     detailSection("描述") {
                         if !bodyText.isEmpty {
-                            if let attributed = try? AttributedString(html: bodyText) {
-                                Text(attributed)
-                                    .font(.body)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            } else {
-                                Text(bodyText)
-                                    .font(.body)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
+                            Text(bodyText)
+                                .font(.body)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                         }
 
                         if !imageURLs.isEmpty {
@@ -189,17 +183,27 @@ struct BugDetailView: View {
         return urls
     }
 
-    /// 去掉描述中的图片标签，得到用于纯文本 / AttributedString 展示的正文。
+    /// 去掉描述中的图片标签与 Markdown 图片语法，并清除其余 HTML 标签，
+    /// 得到用于纯文本展示的正文（图片已由 `extractImageURLs` 单独提取渲染）。
     private func textWithoutImages(_ text: String) -> String {
         var result = text
+        // 1. 移除 HTML 图片标签
         if let regex = try? NSRegularExpression(pattern: #"<img\b[^>]*>"#, options: .caseInsensitive) {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
+        // 2. 移除 Markdown 图片语法 ![alt](url)
         if let regex = try? NSRegularExpression(pattern: #"!\[[^\]]*\]\([^)]+\)"#, options: []) {
             let range = NSRange(result.startIndex..., in: result)
             result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
         }
+        // 3. 移除其余 HTML 标签（如 <p>、<br>、<div> 等），避免把标签当作正文显示
+        if let regex = try? NSRegularExpression(pattern: #"<[^>]+>"#, options: .caseInsensitive) {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(in: result, range: range, withTemplate: "")
+        }
+        // 4. 压缩多余空行
+        result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
