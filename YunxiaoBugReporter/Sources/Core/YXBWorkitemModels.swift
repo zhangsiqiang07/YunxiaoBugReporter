@@ -490,6 +490,34 @@ struct YXBWorkitemsResponse: Decodable {
     }
 }
 
+/// 工作项文件信息响应（云效 `GetWorkitemFile`，用于下载描述中的图片等）。
+///
+/// 接口返回含一个**临时下载地址** `url`（预签名、有时效性，可直接 GET 下载字节，无需 `x-yunxiao-token`）。
+/// 此处容错解析：`url` 可能在根层级，也可能包在 `data` 下。
+struct YXBWorkitemFileResponse: Decodable {
+    let url: String
+
+    private struct URLWrapper: Decodable { let url: String }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: YXBAnyCodingKey.self)
+        if let value = try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "url")),
+           !value.isEmpty {
+            url = value
+            return
+        }
+        if let wrapped = try? container.decode(URLWrapper.self, forKey: YXBAnyCodingKey(stringValue: "data")),
+           !wrapped.url.isEmpty {
+            url = wrapped.url
+            return
+        }
+        throw DecodingError.valueNotFound(
+            String.self,
+            DecodingError.Context(codingPath: [], debugDescription: "GetWorkitemFile 响应缺少有效的 url 字段")
+        )
+    }
+}
+
 /// 工作项详情响应（云效 `GetWorkitem`）。
 ///
 /// 不同版本 / 接口返回的包络不一致：

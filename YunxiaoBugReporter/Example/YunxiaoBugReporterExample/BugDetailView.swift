@@ -85,7 +85,7 @@ struct BugDetailView: View {
                         if !parsed.imageURLs.isEmpty, let reporter = try? makeReporter() {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(parsed.imageURLs, id: \.absoluteString) { url in
-                                    AuthImageView(url: url, reporter: reporter)
+                                    AuthImageView(url: url, workitemID: displayed.id, reporter: reporter)
                                 }
                             }
                         }

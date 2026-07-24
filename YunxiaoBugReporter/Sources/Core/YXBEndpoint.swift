@@ -14,6 +14,7 @@ enum YXBEndpoint {
     case attachments(workitemId: String)
     case updateWorkitem(workitemId: String)
     case getWorkitem(workitemId: String)
+    case getWorkitemFile(workitemId: String, fileId: String)
 
     /// 生成路径（不含域名、不含 query）。
     func path(config: YXBConfiguration) -> String {
@@ -42,6 +43,8 @@ enum YXBEndpoint {
             return base(config) + "/workitems/\(workitemId)"
         case .getWorkitem(let workitemId):
             return base(config) + "/workitems/\(workitemId)"
+        case .getWorkitemFile(let workitemId, let fileId):
+            return base(config) + "/workitems/\(workitemId)/files/\(fileId)"
         }
     }
 

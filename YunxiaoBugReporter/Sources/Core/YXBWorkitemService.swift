@@ -183,4 +183,29 @@ struct YXBWorkitemService {
         let response: YXBWorkitemDetailResponse = try await transport.send(request, responseType: YXBWorkitemDetailResponse.self)
         return response.item
     }
+
+    /// 获取工作项文件（描述中的图片等）的临时下载地址。
+    ///
+    /// 调用云效 `GetWorkitemFile` 接口（`GET .../workitems/{workitemId}/files/{fileId}`）。
+    /// 该接口使用与详情相同的鉴权（`x-yunxiao-token`）；返回的 `url` 为**预签名临时地址**，
+    /// 可直接 GET 下载字节，无需再携带 Token。描述里的图片 `src` 是控制台代理地址，
+    /// 其 `fileIdentifier` 查询参数即本方法的 `fileId`。
+    /// - Parameters:
+    ///   - workitemId: 所属工作项 ID。
+    ///   - fileId: 文件标识（即控制台图片地址里的 `fileIdentifier`）。
+    ///   - token: 云效访问令牌。
+    /// - Returns: 可直接下载字节的临时地址。
+    func fetchWorkitemFileURL(workitemId: String, fileId: String, token: String) async throws -> URL {
+        let request = try builder.build(
+            endpoint: .getWorkitemFile(workitemId: workitemId, fileId: fileId),
+            config: config,
+            method: "GET",
+            token: token
+        )
+        let response: YXBWorkitemFileResponse = try await transport.send(request, responseType: YXBWorkitemFileResponse.self)
+        guard let url = URL(string: response.url) else {
+            throw YXBError.invalidResponse
+        }
+        return url
+    }
 }

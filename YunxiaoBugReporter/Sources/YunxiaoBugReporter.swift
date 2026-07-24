@@ -495,6 +495,55 @@ public final class YunxiaoBugReporter {
         }
     }
 
+    /// 下载工作项描述中的图片字节（经官方 `GetWorkitemFile` 换取临时地址）。
+    ///
+    /// 描述里图片的 `src` 是一个**控制台代理地址**
+    /// （`https://devops.aliyun.com/projex/api/workitem/file/url?fileIdentifier=...`），
+    /// 该地址属于云效控制台系统、与 OpenAPI 网关（`openapi-rdc.aliyuncs.com`）不同源，
+    /// 直接用 OpenAPI Token 访问会 401。正确做法：
+    /// 1. 用工作项 ID + 文件标识（`fileIdentifier`）调用 `GetWorkitemFile`（带 `x-yunxiao-token`），
+    ///    拿到**预签名临时下载地址**；
+    /// 2. 直接 GET 该临时地址取回图片字节（临时地址无需、也不应附加 Token，避免泄漏给第三方存储）。
+    ///
+    /// - Parameters:
+    ///   - fileIdentifier: 文件标识（即控制台代理地址里的 `fileIdentifier` 查询参数）。
+    ///   - workitemID: 所属工作项 ID。
+    /// - Returns: 图片二进制数据。
+    /// - Throws: 未配置、Token 不可用、网络/接口错误。
+    public func downloadWorkitemFile(fileIdentifier: String, workitemID: String) async throws -> Data {
+        guard let config = config, let transport = transport, let workitemService = workitemService else {
+            throw YXBError.notConfigured
+        }
+        let logger: (any YXBLogger)? = config.logger ?? YXBOSLogger.shared
+
+        func resolveToken() async throws -> String {
+            try await fetchToken(config: config, logger: logger)
+        }
+
+        let tempURL: URL
+        do {
+            let token = try await resolveToken()
+            tempURL = try await workitemService.fetchWorkitemFileURL(
+                workitemId: workitemID, fileId: fileIdentifier, token: token
+            )
+        } catch let YXBError.httpError(statusCode: 401, _) {
+            logger?.log(
+                level: .warn,
+                message: "[YunxiaoBugReporter] 获取文件临时地址收到 401，清空 Token 缓存后重试一次"
+            )
+            if let cache = config.cache {
+                await cache.remove(forKey: Self.tokenCacheKey)
+            }
+            let token = try await resolveToken()
+            tempURL = try await workitemService.fetchWorkitemFileURL(
+                workitemId: workitemID, fileId: fileIdentifier, token: token
+            )
+        }
+
+        // 临时地址为预签名 URL，直接 GET 即可（不附加 yunxiao Token，避免把 Token 泄漏给第三方存储）。
+        return try await transport.download(URLRequest(url: tempURL))
+    }
+
     /// 获取单个工作项详情（用于详情页展示完整字段，如描述中的图片、编号等）。
     ///
     /// 调用云效 `GetWorkitem` 接口（`GET .../workitems/{id}`）。
