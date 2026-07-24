@@ -327,7 +327,19 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
     public let subject: String
     public let statusName: String?
     public let assignedToName: String?
+    /// 优先级（如 P0/P1/紧急/高…），可能为 `{name}` 对象或纯字符串。
+    public let priorityName: String?
+    /// 严重程度，可能为 `{name}` 对象或纯字符串。
+    public let severityName: String?
+    /// 创建人，可能为 `{name}` 对象或纯字符串。
+    public let creatorName: String?
+    /// 所属项目/空间，可能为 `{name}` 对象或纯字符串。
+    public let spaceName: String?
+    /// 描述（纯文本，可能缺失）。
+    public let description: String?
     public let gmtCreate: Int64?
+    /// 最近更新时间（毫秒时间戳，容错 Int / 字符串 / 空串）。
+    public let gmtModified: Int64?
 
     /// 仅用于取嵌套对象中的 `name` 字段（忽略其它字段）。
     private struct NameHolder: Decodable {
@@ -345,17 +357,17 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
         subject = (try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "subject"))) ?? ""
         statusName = Self.nestedName(in: container, key: "status")
         assignedToName = Self.nestedName(in: container, key: "assignedTo")
+        priorityName = Self.nestedName(in: container, key: "priority")
+        severityName = Self.nestedName(in: container, key: "severity")
+        creatorName = Self.nestedName(in: container, key: "creator")
+        spaceName = Self.nestedName(in: container, key: "space")
+            ?? Self.nestedName(in: container, key: "project")
 
-        let createdKey = YXBAnyCodingKey(stringValue: "gmtCreate")
-        if let ms = try? container.decode(Int64.self, forKey: createdKey) {
-            gmtCreate = ms
-        } else if let s = try? container.decode(String.self, forKey: createdKey),
-                  !s.isEmpty,
-                  let v = Int64(s) {
-            gmtCreate = v
-        } else {
-            gmtCreate = nil
-        }
+        let rawDescription = try? container.decode(String.self, forKey: YXBAnyCodingKey(stringValue: "description"))
+        description = (rawDescription?.isEmpty == true) ? nil : rawDescription
+
+        gmtCreate = Self.decodeMillis(in: container, forKey: "gmtCreate")
+        gmtModified = Self.decodeMillis(in: container, forKey: "gmtModified")
     }
 
     /// 尝试把某字段解析为 `{name}` 对象或纯字符串，返回其可读名称。
@@ -374,19 +386,48 @@ public struct YXBWorkitem: Identifiable, Sendable, Decodable {
         return nil
     }
 
+    /// 容错解析毫秒时间戳（Int64 / 数字字符串；空串或缺失为 nil）。
+    private static func decodeMillis(
+        in container: KeyedDecodingContainer<YXBAnyCodingKey>,
+        forKey key: String
+    ) -> Int64? {
+        let codingKey = YXBAnyCodingKey(stringValue: key)
+        if let ms = try? container.decode(Int64.self, forKey: codingKey) {
+            return ms
+        }
+        if let s = try? container.decode(String.self, forKey: codingKey),
+           !s.isEmpty,
+           let v = Int64(s) {
+            return v
+        }
+        return nil
+    }
+
     /// 测试 / 兜底用显式构造器。
     public init(
         id: String,
         subject: String,
         statusName: String? = nil,
         assignedToName: String? = nil,
-        gmtCreate: Int64? = nil
+        priorityName: String? = nil,
+        severityName: String? = nil,
+        creatorName: String? = nil,
+        spaceName: String? = nil,
+        description: String? = nil,
+        gmtCreate: Int64? = nil,
+        gmtModified: Int64? = nil
     ) {
         self.id = id
         self.subject = subject
         self.statusName = statusName
         self.assignedToName = assignedToName
+        self.priorityName = priorityName
+        self.severityName = severityName
+        self.creatorName = creatorName
+        self.spaceName = spaceName
+        self.description = description
         self.gmtCreate = gmtCreate
+        self.gmtModified = gmtModified
     }
 }
 

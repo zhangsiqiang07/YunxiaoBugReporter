@@ -121,4 +121,47 @@ final class YXBWorkitemTests: XCTestCase {
         XCTAssertEqual(item.assignedToName, "王五")
         XCTAssertEqual(item.gmtCreate, 1_700_000_000_000)
     }
+
+    /// 详情页所需的扩展字段（优先级 / 严重程度 / 创建人 / 所属项目 / 描述 / 更新时间）可容错解码。
+    func testEnrichedFieldsDecode() throws {
+        let json = Data(#"""
+        [
+          {
+            "identifier": "WI-8",
+            "subject": "内存泄漏",
+            "status": {"name":"处理中"},
+            "assignedTo": {"name":"赵六"},
+            "priority": {"name":"P0"},
+            "severity": "严重",
+            "creator": {"name":"钱七"},
+            "space": {"name":"客户端项目"},
+            "description": "启动后内存持续增长",
+            "gmtCreate": 1700000000000,
+            "gmtModified": 1700001000000
+          }
+        ]
+        """#.utf8)
+        let response = try YXBJSONCoder.decoder.decode(YXBWorkitemsResponse.self, from: json)
+        let item = try XCTUnwrap(response.items.first)
+        XCTAssertEqual(item.id, "WI-8")
+        XCTAssertEqual(item.priorityName, "P0")
+        XCTAssertEqual(item.severityName, "严重")
+        XCTAssertEqual(item.creatorName, "钱七")
+        XCTAssertEqual(item.spaceName, "客户端项目")
+        XCTAssertEqual(item.description, "启动后内存持续增长")
+        XCTAssertEqual(item.gmtModified, 1_700_001_000_000)
+    }
+
+    /// 扩展字段缺失时均为 nil（不影响列表接口已返回字段的解析）。
+    func testEnrichedFieldsAbsentYieldNil() throws {
+        let json = Data(#"[{"id":"WI-9","subject":"S9"}]"#.utf8)
+        let response = try YXBJSONCoder.decoder.decode(YXBWorkitemsResponse.self, from: json)
+        let item = try XCTUnwrap(response.items.first)
+        XCTAssertNil(item.priorityName)
+        XCTAssertNil(item.severityName)
+        XCTAssertNil(item.creatorName)
+        XCTAssertNil(item.spaceName)
+        XCTAssertNil(item.description)
+        XCTAssertNil(item.gmtModified)
+    }
 }

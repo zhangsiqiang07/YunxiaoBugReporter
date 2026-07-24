@@ -36,8 +36,12 @@ struct BugListView: View {
             }
 
             ForEach(workitems) { item in
-                WorkitemRow(item: item)
-                    .onAppear { loadMoreIfNeeded(current: item) }
+                NavigationLink {
+                    BugDetailView(item: item)
+                } label: {
+                    WorkitemRow(item: item)
+                }
+                .onAppear { loadMoreIfNeeded(current: item) }
             }
 
             if isLoadingMore {
