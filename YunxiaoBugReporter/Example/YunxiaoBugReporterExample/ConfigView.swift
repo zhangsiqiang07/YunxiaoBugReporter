@@ -120,7 +120,7 @@ struct ConfigView: View {
                 .disabled(isLoadingProjects)
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID / Token 已写死在代码中并自动展示。")
+                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID 写死在代码中并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用代码中的值）。")
                     if let loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
@@ -131,9 +131,13 @@ struct ConfigView: View {
             }
 
             Section {
-                // Token 写死在 DemoConstants，自动只读展示；需要变更时直接改代码常量。
-                infoRow("云效访问 Token", value: DemoConstants.token, lines: 3)
-                Text("Token 写死在 DemoConstants（明文仅用于演示，生产环境请勿如此）；拉取成员/类型列表需要该 Token 具备对应只读权限。")
+                // Token 默认可编辑：初始值为代码中的 DemoConstants.token，可在此修改并保存；
+                // 留空则回退到代码默认值（见 DemoConfigStore.resolvedToken）。
+                TextField("云效访问 Token", text: $store.token, axis: .vertical)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .lineLimit(3, reservesSpace: true)
+                Text("默认使用代码中的 Token，可在此临时修改并保存（明文仅用于演示，生产环境请勿如此）；留空则回退到代码默认值。拉取成员/类型/项目列表需要该 Token 具备对应只读权限。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: { Text("访问凭证") }
