@@ -6,8 +6,10 @@ import SwiftUI
 /// - 右上角：「提交 Bug」按钮，进入 `SubmitView`；
 /// - 列表：分页加载（滚动到底部自动加载下一页），支持下拉刷新；
 ///   点击某一行可查看工作项详情（演示中仅展示基本信息）。
-struct BugListView: View {
+public struct BugListView: View {
     @EnvironmentObject private var store: YXBConfigStore
+
+    public init() {}
 
     @State private var workitems: [YXBWorkitem] = []
     @State private var page = 1
@@ -24,7 +26,7 @@ struct BugListView: View {
     @State private var projectOptions: [YXBProject] = []
     @State private var isLoadingProjects = false
 
-    var body: some View {
+    public var body: some View {
         List {
             if let errorMessage, workitems.isEmpty {
                 Section {

@@ -6,11 +6,16 @@ import SwiftUI
 ///
 /// 列表型参数（负责人、工作项类型）通过云效 API 拉取选项，以「选择」方式录入，
 /// 拉取失败时回退为手动输入，避免硬编码 ID。
-struct ConfigView: View {
-    enum Mode { case normal, forced }
+public struct ConfigView: View {
+    public enum Mode { case normal, forced }
 
     let mode: Mode
     var onComplete: (() -> Void)? = nil
+
+    public init(mode: Mode, onComplete: (() -> Void)? = nil) {
+        self.mode = mode
+        self.onComplete = onComplete
+    }
 
     @EnvironmentObject private var store: YXBConfigStore
     @State private var showErrors = false
@@ -24,7 +29,7 @@ struct ConfigView: View {
     @State private var isLoadingProjects = false
     @State private var loadMessage: String?
 
-    var body: some View {
+    public var body: some View {
         Form {
             Section {
                 // 域名、组织 ID 由宿主注入，自动只读展示，无需手动填写。

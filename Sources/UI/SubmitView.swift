@@ -2,8 +2,10 @@ import SwiftUI
 import PhotosUI
 
 /// Bug 提交页面：填写标题/描述、选择描述格式、附加截图（可选），点击提交。
-struct SubmitView: View {
+public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
+
+    public init() {}
 
     @State private var title = ""
     @State private var description = ""
@@ -25,7 +27,7 @@ struct SubmitView: View {
     @State private var isLoadingMembers = false
     @State private var memberLoadError: String?
 
-    var body: some View {
+    public var body: some View {
         Form {
             Section("指派给") {
                 if isLoadingMembers {
