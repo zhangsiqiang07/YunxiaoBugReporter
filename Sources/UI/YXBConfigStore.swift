@@ -32,7 +32,17 @@ public final class YXBConfigStore: ObservableObject {
     public var defaultToken: String = ""
     /// 宿主可注入的默认负责人（用户 ID）。未显式选择负责人时作为回退值，行为类似 `defaultToken`。
     /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
-    public var defaultAssignedTo: String = ""
+    /// 赋值时若当前 `assignedTo` 仍为空，会自动将其种子为默认负责人，使 UI 默认选中该成员；
+    /// 一旦用户显式选择过负责人（assignedTo 非空），默认负责人不再覆盖既有选择。
+    public var defaultAssignedTo: String = "" {
+        didSet {
+            let trimmedDefault = defaultAssignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmedDefault.isEmpty else { return }
+            if assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                assignedTo = trimmedDefault
+            }
+        }
+    }
 
     @Published var editionRaw = "standard"
     @Published var projectID = ""
