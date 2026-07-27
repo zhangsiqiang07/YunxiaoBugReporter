@@ -32,7 +32,7 @@ struct BugDetailView: View {
                     }
                     .padding(.vertical, 8)
                 }
-                if let detailError {
+                if let detailError = detailError {
                     Text(detailError)
                         .font(.footnote)
                         .foregroundStyle(.red)

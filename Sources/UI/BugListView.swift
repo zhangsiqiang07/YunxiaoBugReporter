@@ -86,7 +86,7 @@ public struct BugListView: View {
                     }
                 }
             }
-            if let onExit {
+            if let onExit = onExit {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         onExit()

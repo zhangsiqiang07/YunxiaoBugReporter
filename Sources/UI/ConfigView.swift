@@ -128,7 +128,7 @@ public struct ConfigView: View {
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；「负责人」为提交必填项，但配置页可留空、提交时再校验，且无需先手填 ID——选定项目后点「从成员列表加载负责人」即可从下拉选择（切换项目会自动重新拉取）；域名 / 组织 ID 由宿主初始化时注入并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用初始化注入的值）。")
-                    if let loadMessage {
+                    if let loadMessage = loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
                     }
@@ -170,7 +170,7 @@ public struct ConfigView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("保存") { save() }
             }
-            if let onExit {
+            if let onExit = onExit {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         onExit()

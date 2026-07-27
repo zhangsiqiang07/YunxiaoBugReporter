@@ -146,7 +146,7 @@ public struct SubmitView: View {
                 .disabled(isSubmitting || title.trimmingCharacters(in: .whitespaces).isEmpty || !requiredFieldsFilled)
             }
 
-            if let resultText {
+            if let resultText = resultText {
                 Section {
                     Text(resultText)
                         .font(.subheadline)
