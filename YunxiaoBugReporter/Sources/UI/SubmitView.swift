@@ -322,6 +322,13 @@ struct SubmitView: View {
             return
         }
 
+        // 负责人（指派给）在提交时校验：配置页可留空，此处明确提示，避免提交到服务端才 400。
+        guard !store.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            resultText = "请选择负责人（指派给）后再提交。"
+            resultIsError = true
+            return
+        }
+
         do {
             let config = try store.buildConfiguration()
             let reporter = YunxiaoBugReporter()

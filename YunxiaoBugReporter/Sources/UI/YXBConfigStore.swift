@@ -8,7 +8,7 @@ import SwiftUI
 /// 因此 SDK 可独立分发、不包含演示用的真实 Token。
 ///
 /// 本类负责把存储内容转换为 SDK 的 `YXBConfiguration`：
-/// - `isConfigured` / `validationErrors()` 判断是否满足提交所需的最小信息；
+/// - `isConfigured` / `validationErrors()` 判断是否满足进入主界面的最小配置（项目 ID 必填；负责人于提交时校验）；
 /// - `save()` 持久化可变配置（明文写入 UserDefaults）；
 /// - `buildConfiguration()` 构造 SDK 配置，域名/组织ID 来自注入值，
 ///   `tokenProvider` 实时返回（用户填写的）Token，留空时回退 `defaultToken`。
@@ -58,20 +58,19 @@ public final class YXBConfigStore: ObservableObject {
         editionRaw == "region" ? .region : .standard
     }
 
-    /// 是否已具备提交所需的最小配置。
+    /// 是否已具备进入主界面所需的最小配置（仅要求项目 ID；负责人在提交时校验）。
     public var isConfigured: Bool {
         validationErrors().isEmpty
     }
 
-    /// 返回所有不满足的配置问题；为空表示配置完整。
+    /// 返回所有不满足的配置问题；为空表示可进入主界面。
+    /// 仅校验「项目 ID」必填；「负责人」(assignedTo) 不再作为配置页必填项，
+    /// 可在提交页从成员列表选择，留空时于提交时再校验（见 `SubmitView.submit`）。
     /// 域名 / 组织 ID / Token 来自注入值，始终存在，不在此校验。
     public func validationErrors() -> [String] {
         var issues: [String] = []
         if projectID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append("请填写项目 ID")
-        }
-        if assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            issues.append("请填写负责人用户 ID")
         }
         return issues
     }
