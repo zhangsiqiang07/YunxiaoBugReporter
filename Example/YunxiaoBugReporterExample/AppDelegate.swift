@@ -31,10 +31,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 /// 示例宿主根界面（UIKit 实现，不放在 SDK 内）：
-/// 两个入口：
-/// 1. 「打开 Bug 上报」——以全屏 modal 的方式 present `BugReporterRootViewController`；
-/// 2. 「带原应用截图打开」——先截取宿主自身窗口（模拟「原应用」截图），把截图带入 SDK 的
-///    提 Bug 页面作为预置附件。退出（dismiss）后回到本界面，可再次进入。
+/// 入口：
+/// 1. 「打开 Bug 上报」——直接进入 SDK 的「提交 Bug」页面（全屏 modal）；
+/// 2. 「带原应用截图打开」——截取宿主自身窗口（模拟「原应用」截图），直接带入「提交 Bug」页面作为预置附件；
+/// 3. 「打开完整界面」——以 TabBar 形式进入 Bug 列表 / 云效配置，便于配置与查看历史。
+/// 退出（dismiss）后回到本界面，可再次进入。
 final class ExampleRootViewController: UIViewController {
     let store: YXBConfigStore
 
@@ -60,6 +61,17 @@ final class ExampleRootViewController: UIViewController {
         return b
     }()
 
+    private let openFullButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("打开完整界面（Bug列表/配置）", for: .normal)
+        b.setTitleColor(.secondaryLabel, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .regular)
+        b.backgroundColor = UIColor.secondarySystemBackground
+        b.layer.cornerRadius = 12
+        b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 28, bottom: 12, right: 28)
+        return b
+    }()
+
     init(store: YXBConfigStore) {
         self.store = store
         super.init(nibName: nil, bundle: nil)
@@ -79,8 +91,9 @@ final class ExampleRootViewController: UIViewController {
     private func setupButtons() {
         openButton.addTarget(self, action: #selector(openReporter), for: .touchUpInside)
         openWithScreenshotButton.addTarget(self, action: #selector(openWithScreenshot), for: .touchUpInside)
+        openFullButton.addTarget(self, action: #selector(openFull), for: .touchUpInside)
 
-        let stack = UIStackView(arrangedSubviews: [openButton, openWithScreenshotButton])
+        let stack = UIStackView(arrangedSubviews: [openButton, openWithScreenshotButton, openFullButton])
         stack.axis = .vertical
         stack.spacing = 16
         stack.alignment = .center
@@ -92,29 +105,55 @@ final class ExampleRootViewController: UIViewController {
         ])
     }
 
+    /// 直接进入 SDK 的「提交 Bug」页面。
     @objc private func openReporter() {
-        let reporter = BugReporterRootViewController(store: store)
-        reporter.modalPresentationStyle = .fullScreen
-        present(reporter, animated: true, completion: nil)
+        presentSubmit(sourceImages: [])
     }
 
-    /// 截取宿主窗口（模拟「原应用」产生的截图），将其带入 SDK 提 Bug 页面。
+    /// 截取宿主窗口（模拟「原应用」产生的截图），直接带入「提交 Bug」页面作为预置附件。
     @objc private func openWithScreenshot() {
         guard let window = view.window else {
-            openReporter()
+            presentSubmit(sourceImages: [])
             return
         }
         let bounds = window.bounds
         let screenshot = UIGraphicsImageRenderer(size: bounds.size).image { _ in
             window.drawHierarchy(in: bounds, afterScreenUpdates: false)
         }
-        let reporter = BugReporterRootViewController(store: store, sourceImages: [screenshot])
+        presentSubmit(sourceImages: [screenshot])
+    }
+
+    /// 以全屏 modal 直接进入「提交 Bug」页面，并附带「关闭」按钮退出。
+    private func presentSubmit(sourceImages: [UIImage]) {
+        let submitHosting = UIHostingController(
+            rootView: SubmitView(sourceImages: sourceImages)
+                .navigationViewStyle(.stack)
+                .environmentObject(store)
+        )
+        submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "关闭",
+            style: .done,
+            target: self,
+            action: #selector(dismissPresented)
+        )
+        let nav = UINavigationController(rootViewController: submitHosting)
+        nav.modalPresentationStyle = .fullScreen
+        present(nav, animated: true, completion: nil)
+    }
+
+    /// 打开完整界面（Bug 列表 / 云效配置 TabBar），便于配置与查看历史。
+    @objc private func openFull() {
+        let reporter = BugReporterRootViewController(store: store)
         reporter.modalPresentationStyle = .fullScreen
         present(reporter, animated: true, completion: nil)
     }
+
+    @objc private func dismissPresented() {
+        dismiss(animated: true, completion: nil)
+    }
 }
 
-/// Example 侧的根界面（UIKit 实现，不放在 SDK 内）：
+/// Example 侧的完整界面（TabBar，UIKit 实现，不放在 SDK 内）：
 /// 以 `UITabBarController` 承载 SDK 内置的两个 SwiftUI 页面（Bug 列表 / 云效配置），
 /// 「退出」按钮放在各页面自身的导航栏右侧（由 SDK 视图通过 onExit 回调触发），
 /// 列表底部、TabBar 之上另叠加一个「添加Bug」悬浮按钮：仅 Bug 列表 Tab 显示，
