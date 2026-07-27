@@ -12,6 +12,8 @@ import SwiftUI
 /// - `save()` 持久化可变配置（明文写入 UserDefaults）；
 /// - `buildConfiguration()` 构造 SDK 配置，域名/组织ID 来自注入值，
 ///   `tokenProvider` 实时返回（用户填写的）Token，留空时回退 `defaultToken`。
+/// - `defaultAssignedTo`（可选）允许宿主注入默认负责人（用户 ID），未显式选择时作为回退，
+///   提交时自动选用，行为与 `defaultToken` 一致。
 ///
 /// 域名 / 组织 ID 由宿主注入且通常不变化，故不持久化；其余可变字段（项目、负责人、Token、
 /// 缓存设置等）持久化，便于宿主 App 重启后保留用户上次的选择。
@@ -22,6 +24,8 @@ public final class YXBConfigStore: ObservableObject {
     public let organizationID: String
     /// 注入的默认 Token；当用户未显式修改 Token 时作为回退值。
     private let defaultToken: String
+    /// 宿主可注入的默认负责人（用户 ID）。未显式选择负责人时作为回退值，行为类似 `defaultToken`。
+    private let defaultAssignedTo: String
 
     @Published var editionRaw = "standard"
     @Published var projectID = ""
@@ -42,16 +46,22 @@ public final class YXBConfigStore: ObservableObject {
         domain: String,
         organizationID: String,
         defaultToken: String = "",
+        defaultAssignedTo: String = "",
         edition: YXBConfiguration.Edition = .standard,
         defaultsKey: String = "com.yunxiao.bugreporter.config.v1"
     ) {
         self.domain = domain
         self.organizationID = organizationID
         self.defaultToken = defaultToken
+        self.defaultAssignedTo = defaultAssignedTo
         self.defaultsKey = defaultsKey
         self.token = defaultToken
         self.editionRaw = edition == .region ? "region" : "standard"
         load()
+        // 与 Token 回退一致：未显式选择负责人时，回退到注入的默认负责人。
+        if assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            assignedTo = defaultAssignedTo
+        }
     }
 
     public var edition: YXBConfiguration.Edition {

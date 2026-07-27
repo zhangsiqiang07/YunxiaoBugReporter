@@ -231,6 +231,10 @@ struct ConfigView: View {
             let members = try await reporter.listProjectMembers()
             await MainActor.run {
                 memberOptions = members
+                // 若当前已配置（含注入的默认负责人）的负责人命中成员列表，补上展示名。
+                if let current = members.first(where: { $0.id == store.assignedTo }) {
+                    store.assignedToName = current.name
+                }
                 if !silent {
                     loadMessage = members.isEmpty ? "未获取到成员，可手动填写负责人 ID。" : "已加载 \(members.count) 名成员。"
                 }
