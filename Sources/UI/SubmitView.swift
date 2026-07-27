@@ -5,7 +5,11 @@ import PhotosUI
 public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
 
-    public init() {}
+    /// - Parameter sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
+    ///   作为预置附件展示，用户可继续增删或框选标注。默认空。
+    public init(sourceImages: [UIImage] = []) {
+        _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
+    }
 
     @State private var title = ""
     @State private var description = ""
@@ -15,6 +19,8 @@ public struct SubmitView: View {
     @State private var resultText: String?
     @State private var resultIsError = false
     @State private var showPicker = false
+    /// 当前正在标注的图片（点开缩略图进入全屏标注器）。
+    @State private var annotateTarget: AnnotateTarget?
 
     // MARK: - 工作项类型字段（必填列表项）
     @State private var fieldDefinitions: [YXBFieldDefinition] = []
@@ -102,11 +108,20 @@ public struct SubmitView: View {
                     HStack(spacing: 12) {
                         ForEach(images) { item in
                             ZStack(alignment: .topTrailing) {
-                                Image(uiImage: item.image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 76, height: 76)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                Button {
+                                    annotateTarget = AnnotateTarget(id: item.id, image: item.image, rect: item.annotation)
+                                } label: {
+                                    ZStack {
+                                        Image(uiImage: item.image)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 76, height: 76)
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        if let rect = item.annotation {
+                                            annotationRect(rect, in: CGSize(width: 76, height: 76), imageSize: item.image.size)
+                                        }
+                                    }
+                                }
                                 Button {
                                     images.removeAll { $0.id == item.id }
                                 } label: {
@@ -157,6 +172,14 @@ public struct SubmitView: View {
         .navigationTitle("提交 Bug")
         .sheet(isPresented: $showPicker) {
             PhotoPicker(images: $images)
+        }
+        .fullScreenCover(item: $annotateTarget) { target in
+            ImageAnnotatorView(image: target.image, initialRect: target.rect) { newRect in
+                if let index = images.firstIndex(where: { $0.id == target.id }) {
+                    images[index].annotation = newRect
+                }
+                annotateTarget = nil
+            }
         }
         .onAppear {
             guard !isLoadingFields else { return }
@@ -342,7 +365,9 @@ public struct SubmitView: View {
 
             var attachments: [YXBAttachment] = []
             for (index, item) in images.enumerated() {
-                if let data = item.image.jpegData(compressionQuality: 0.8) {
+                // 若用户对截图做了红色框选，将其烘焙进图片后再上传。
+                let baked = yxb_bakeRedBox(into: item.image, normalizedRect: item.annotation)
+                if let data = baked.jpegData(compressionQuality: 0.8) {
                     attachments.append(
                         YXBAttachment(data: data, fileName: "screenshot-\(index + 1).jpg", mimeType: "image/jpeg")
                     )
@@ -377,4 +402,37 @@ public struct SubmitView: View {
 struct IdentifiedImage: Identifiable {
     let id = UUID()
     let image: UIImage
+    /// 红色框选区域（归一化 0..1，相对图片自然尺寸）；为 `nil` 表示未标注。
+    var annotation: CGRect?
+
+    init(image: UIImage, annotation: CGRect? = nil) {
+        self.image = image
+        self.annotation = annotation
+    }
+}
+
+/// 当前正在全屏标注的目标图片。
+struct AnnotateTarget: Identifiable {
+    let id: UUID
+    let image: UIImage
+    let rect: CGRect?
+}
+
+/// 缩略图（scaledToFill 方形）上的红色框选覆盖层。
+private func annotationRect(_ normalized: CGRect, in frame: CGSize, imageSize: CGSize) -> some View {
+    let scale = max(frame.width / imageSize.width, frame.height / imageSize.height)
+    let drawnW = imageSize.width * scale
+    let drawnH = imageSize.height * scale
+    let offsetX = (frame.width - drawnW) / 2
+    let offsetY = (frame.height - drawnH) / 2
+    let rect = CGRect(
+        x: offsetX + normalized.origin.x * drawnW,
+        y: offsetY + normalized.origin.y * drawnH,
+        width: normalized.width * drawnW,
+        height: normalized.height * drawnH
+    )
+    return RoundedRectangle(cornerRadius: 3)
+        .stroke(Color.red, lineWidth: 2)
+        .frame(width: rect.width, height: rect.height)
+        .position(x: rect.midX, y: rect.midY)
 }

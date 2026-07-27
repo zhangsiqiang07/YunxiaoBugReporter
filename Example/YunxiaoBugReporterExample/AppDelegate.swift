@@ -31,8 +31,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 }
 
 /// 示例宿主根界面（UIKit 实现，不放在 SDK 内）：
-/// 仅放置一个「打开 Bug 上报」按钮，点击后以全屏 modal 的方式 present
-/// `BugReporterRootViewController`；退出（dismiss）后回到本界面，可再次进入。
+/// 两个入口：
+/// 1. 「打开 Bug 上报」——以全屏 modal 的方式 present `BugReporterRootViewController`；
+/// 2. 「带原应用截图打开」——先截取宿主自身窗口（模拟「原应用」截图），把截图带入 SDK 的
+///    提 Bug 页面作为预置附件。退出（dismiss）后回到本界面，可再次进入。
 final class ExampleRootViewController: UIViewController {
     let store: YXBConfigStore
 
@@ -42,6 +44,17 @@ final class ExampleRootViewController: UIViewController {
         b.setTitleColor(.white, for: .normal)
         b.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
         b.backgroundColor = UIColor.systemBlue
+        b.layer.cornerRadius = 12
+        b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 28, bottom: 12, right: 28)
+        return b
+    }()
+
+    private let openWithScreenshotButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("带原应用截图打开", for: .normal)
+        b.setTitleColor(.systemBlue, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        b.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.12)
         b.layer.cornerRadius = 12
         b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 28, bottom: 12, right: 28)
         return b
@@ -60,21 +73,42 @@ final class ExampleRootViewController: UIViewController {
         super.viewDidLoad()
         title = "示例宿主"
         view.backgroundColor = .systemBackground
-        setupOpenButton()
+        setupButtons()
     }
 
-    private func setupOpenButton() {
+    private func setupButtons() {
         openButton.addTarget(self, action: #selector(openReporter), for: .touchUpInside)
-        openButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(openButton)
+        openWithScreenshotButton.addTarget(self, action: #selector(openWithScreenshot), for: .touchUpInside)
+
+        let stack = UIStackView(arrangedSubviews: [openButton, openWithScreenshotButton])
+        stack.axis = .vertical
+        stack.spacing = 16
+        stack.alignment = .center
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
         NSLayoutConstraint.activate([
-            openButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            openButton.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
     }
 
     @objc private func openReporter() {
         let reporter = BugReporterRootViewController(store: store)
+        reporter.modalPresentationStyle = .fullScreen
+        present(reporter, animated: true, completion: nil)
+    }
+
+    /// 截取宿主窗口（模拟「原应用」产生的截图），将其带入 SDK 提 Bug 页面。
+    @objc private func openWithScreenshot() {
+        guard let window = view.window else {
+            openReporter()
+            return
+        }
+        let bounds = window.bounds
+        let screenshot = UIGraphicsImageRenderer(size: bounds.size).image { _ in
+            window.drawHierarchy(in: bounds, afterScreenUpdates: false)
+        }
+        let reporter = BugReporterRootViewController(store: store, sourceImages: [screenshot])
         reporter.modalPresentationStyle = .fullScreen
         present(reporter, animated: true, completion: nil)
     }
@@ -87,8 +121,16 @@ final class ExampleRootViewController: UIViewController {
 /// 点击以全屏 modal 进入 `SubmitView`（含「关闭」按钮）。
 final class BugReporterRootViewController: UIViewController {
     let store: YXBConfigStore
+    /// 由「原应用」注入的截图，进入提 Bug 页面时作为预置附件；注入一次后清空避免重复。
+    var sourceImages: [UIImage]
 
     private var mainTabBarController: UITabBarController!
+
+    init(store: YXBConfigStore, sourceImages: [UIImage] = []) {
+        self.store = store
+        self.sourceImages = sourceImages
+        super.init(nibName: nil, bundle: nil)
+    }
 
     // MARK: - 悬浮按钮
 
@@ -196,7 +238,7 @@ final class BugReporterRootViewController: UIViewController {
 
     @objc private func addBugTapped() {
         let submitHosting = UIHostingController(
-            rootView: SubmitView().environmentObject(store)
+            rootView: SubmitView(sourceImages: sourceImages).environmentObject(store)
         )
         // SubmitView 自身无关闭按钮（原依赖导航返回），此处补一个「关闭」以 modal 形式退出。
         submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -208,6 +250,8 @@ final class BugReporterRootViewController: UIViewController {
         let nav = UINavigationController(rootViewController: submitHosting)
         nav.modalPresentationStyle = .fullScreen
         present(nav, animated: true, completion: nil)
+        // 原应用截图仅注入一次，避免再次进入提 Bug 页时重复添加。
+        sourceImages = []
     }
 
     @objc private func dismissPresented() {
