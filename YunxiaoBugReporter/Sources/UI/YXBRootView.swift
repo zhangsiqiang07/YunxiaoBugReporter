@@ -24,9 +24,10 @@ public struct YXBRootView: View {
             } else if store.isConfigured || showMain {
                 MainTabView()
             } else {
-                NavigationStack {
+                NavigationView {
                     ConfigView(mode: .forced, onComplete: { showMain = true })
                 }
+                .navigationViewStyle(.stack)
             }
         }
     }
@@ -80,10 +81,12 @@ struct LandingView: View {
 struct MainTabView: View {
     var body: some View {
         TabView {
-            NavigationStack { BugListView() }
+            NavigationView { BugListView() }
+                .navigationViewStyle(.stack)
                 .tabItem { Label("Bug 列表", systemImage: "list.bullet") }
 
-            NavigationStack { ConfigView(mode: .normal) }
+            NavigationView { ConfigView(mode: .normal) }
+                .navigationViewStyle(.stack)
                 .tabItem { Label("云效配置", systemImage: "gearshape.fill") }
         }
     }

@@ -35,9 +35,7 @@ struct BugListView: View {
             }
 
             ForEach(workitems) { item in
-                NavigationLink {
-                    BugDetailView(item: item)
-                } label: {
+                NavigationLink(destination: BugDetailView(item: item)) {
                     WorkitemRow(item: item)
                 }
                 .onAppear { loadMoreIfNeeded(current: item) }
@@ -95,9 +93,14 @@ struct BugListView: View {
         .sheet(isPresented: $showProjectPicker) {
             projectPickerSheet
         }
-        .navigationDestination(isPresented: $navigateToSubmit) {
-            SubmitView()
-        }
+        // iOS 15 兼容：用隐藏的 NavigationLink(isActive:) 实现编程式 push，
+        // 替代 iOS 16 才有的 .navigationDestination(isPresented:)。
+        .background(
+            NavigationLink(destination: SubmitView(), isActive: $navigateToSubmit) {
+                EmptyView()
+            }
+            .hidden()
+        )
         .refreshable {
             await reload()
         }
@@ -219,7 +222,7 @@ struct BugListView: View {
     // MARK: - 项目切换 Sheet
 
     private var projectPickerSheet: some View {
-        NavigationStack {
+        NavigationView {
             List {
                 if isLoadingProjects {
                     Section { HStack { Spacer(); ProgressView(); Spacer() } }
@@ -267,6 +270,7 @@ struct BugListView: View {
                 }
             }
         }
+        .navigationViewStyle(.stack)
     }
 }
 
