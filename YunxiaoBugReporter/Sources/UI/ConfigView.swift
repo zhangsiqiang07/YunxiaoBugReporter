@@ -119,7 +119,7 @@ struct ConfigView: View {
                 .disabled(isLoadingProjects)
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID 由宿主初始化时注入并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用初始化注入的值）。")
+                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；「负责人」为提交必填项，但无需先手填 ID——选定项目后点「从成员列表加载负责人」即可从下拉选择（切换项目会自动重新拉取）；域名 / 组织 ID 由宿主初始化时注入并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用初始化注入的值）。")
                     if let loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
@@ -172,23 +172,39 @@ struct ConfigView: View {
             // 项目列表接口仅依赖 organizationID，与 projectID 无关，故即使在尚未选择项目时
             // 也静默预拉取，便于默认可用并自动选中最新建立的项目。
             Task { await loadProjects(silent: true) }
-            // 已具备最小配置时，静默预拉取成员/类型列表，使选择器默认可用。
-            guard store.isConfigured else { return }
-            Task { await loadMembers(silent: true) }
-            Task { await loadTypes(silent: true) }
+            // 项目已确定后，静默预拉取成员 / 类型列表，使「负责人」等选择器默认可用。
+            // 这些列表仅依赖 projectID，与负责人(assignedTo)无关，故无需先填负责人。
+            autoLoadScopedLists()
+        }
+        .onChange(of: store.projectID) { _ in
+            // 用户在「项目」选择器切换后，自动重新拉取该项目下的成员 / 类型列表。
+            autoLoadScopedLists()
         }
     }
 
     // MARK: - 列表拉取
 
-    private func makeReporter() -> YunxiaoBugReporter? {
+    /// 构造仅用于拉取「项目级列表」（成员 / 工作项类型）的 reporter。
+    ///
+    /// 成员与类型接口均为项目级，仅依赖 `projectID`，与 `assignedTo`（负责人）无关。
+    /// `configure()` 要求 `assignedTo` 非空，但查询这些列表并不需要它；因此用
+    /// `buildConfigurationForMemberListing()`（为空时以占位值绕过校验），
+    /// 使「负责人」可在列表加载后再从下拉选择，无需先手填 ID。
+    private func makeReporterForMemberListing() -> YunxiaoBugReporter? {
         do {
             let reporter = YunxiaoBugReporter()
-            try reporter.configure(store.buildConfiguration())
+            try reporter.configure(store.buildConfigurationForMemberListing())
             return reporter
         } catch {
             return nil
         }
+    }
+
+    /// 项目已配置时，静默预拉取成员与类型列表（仅依赖 projectID，无需负责人）。
+    private func autoLoadScopedLists() {
+        guard !store.projectID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        Task { await loadMembers(silent: true) }
+        Task { await loadTypes(silent: true) }
     }
 
     /// 只读信息行：左侧标题，右侧值（右对齐、可折行）。用于展示由宿主注入的配置。
@@ -207,8 +223,8 @@ struct ConfigView: View {
     private func loadMembers(silent: Bool = false) async {
         isLoadingMembers = true
         defer { isLoadingMembers = false }
-        guard let reporter = makeReporter() else {
-            if !silent { await MainActor.run { loadMessage = "请先填写域名、项目、Token 等必填项后再加载成员。" } }
+        guard let reporter = makeReporterForMemberListing() else {
+            if !silent { await MainActor.run { loadMessage = "请先填写域名、组织 ID、项目、Token 等必填项后再加载成员。" } }
             return
         }
         do {
@@ -229,8 +245,8 @@ struct ConfigView: View {
     private func loadTypes(silent: Bool = false) async {
         isLoadingTypes = true
         defer { isLoadingTypes = false }
-        guard let reporter = makeReporter() else {
-            if !silent { await MainActor.run { loadMessage = "请先填写域名、项目、Token 等必填项后再加载类型。" } }
+        guard let reporter = makeReporterForMemberListing() else {
+            if !silent { await MainActor.run { loadMessage = "请先填写域名、组织 ID、项目、Token 等必填项后再加载类型。" } }
             return
         }
         do {
