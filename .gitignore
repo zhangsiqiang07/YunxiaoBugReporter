@@ -3,7 +3,22 @@
 
 # OS / 编辑器
 .DS_Store
+.idea/
 
 # 环境变量 / 密钥
 *.env
 .env.*
+
+# Build artifacts
+.build/
+DerivedData/
+*.xcworkspace
+*.xcuserdata/
+
+# CocoaPods
+Pods/
+Podfile.lock
+Example/Pods/
+
+# Logs
+*.log
