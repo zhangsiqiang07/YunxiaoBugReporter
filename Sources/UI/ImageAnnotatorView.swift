@@ -160,7 +160,7 @@ struct ImageAnnotatorView: View {
 
     /// 归一化矩形 → 容器内坐标（scaledToFit）。
     private static func fromNormalized(_ normalized: CGRect, container: CGSize, imageSize: CGSize) -> CGRect {
-        let content = contentRect(container: container, imageSize: imageSize)
+        let content = contentRect(container: container, image: imageSize)
         return CGRect(
             x: content.origin.x + normalized.origin.x * content.width,
             y: content.origin.y + normalized.origin.y * content.height,
