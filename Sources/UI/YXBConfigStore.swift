@@ -4,8 +4,11 @@ import SwiftUI
 /// SDK 内置的配置存储（可观察对象），用于在宿主 App 与 SDK 自带 UI 之间共享可变配置。
 ///
 /// 与早期 Example 中的 `DemoConfigStore` 不同，本类**不硬编码任何凭据**：
-/// 域名、组织 ID、默认 Token 均由宿主在初始化时注入（`domain` / `organizationID` / `defaultToken`），
-/// 因此 SDK 可独立分发、不包含演示用的真实 Token。
+/// 域名、组织 ID、默认 Token、默认负责人均由宿主注入
+/// （`domain` / `organizationID` / `defaultToken` / `defaultAssignedTo`）。
+/// 这些注入参数**全部带默认值（空字符串）**，因此可直接 `YXBConfigStore()` 创建实例，
+/// 随后在代码中按需赋值（如 `store.domain = ...`、`store.token = ...`），SDK 不会写入任何真实凭据，
+/// 可独立分发。
 ///
 /// 本类负责把存储内容转换为 SDK 的 `YXBConfiguration`：
 /// - `isConfigured` / `validationErrors()` 判断是否满足进入主界面的最小配置（项目 ID 必填；负责人于提交时校验）；
@@ -19,17 +22,22 @@ import SwiftUI
 /// 缓存设置等）持久化，便于宿主 App 重启后保留用户上次的选择。
 public final class YXBConfigStore: ObservableObject {
     /// 宿主注入的云效服务域名（如 `https://openapi-rdc.aliyuncs.com`）。
-    public let domain: String
+    /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
+    public var domain: String = ""
     /// 宿主注入的组织 ID（中心版必填）。
-    public let organizationID: String
+    /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
+    public var organizationID: String = ""
     /// 注入的默认 Token；当用户未显式修改 Token 时作为回退值。
-    private let defaultToken: String
+    /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
+    public var defaultToken: String = ""
     /// 宿主可注入的默认负责人（用户 ID）。未显式选择负责人时作为回退值，行为类似 `defaultToken`。
-    private let defaultAssignedTo: String
+    /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
+    public var defaultAssignedTo: String = ""
 
     @Published var editionRaw = "standard"
     @Published var projectID = ""
-    @Published var assignedTo = ""
+    /// 负责人（指派给）用户 ID。可在代码中直接赋值，也已由 SDK 内置 UI 绑定。
+    @Published public var assignedTo = ""
     @Published var assignedToName = ""
     @Published var workitemTypeID = ""
     @Published var cacheEnabled = true
@@ -37,14 +45,15 @@ public final class YXBConfigStore: ObservableObject {
     @Published var workitemTypeCacheTTL = 3600.0
     @Published var tokenCacheTTL = 300.0
 
-    /// 云效访问 Token。初始默认取自注入的 `defaultToken`，可在配置页修改。
-    @Published var token: String
+    /// 云效访问 Token。初始默认取自注入的 `defaultToken`，可在配置页修改，
+    /// 也可在代码中直接赋值（如 `store.token = ...`）。
+    @Published public var token: String
 
     private let defaultsKey: String
 
     public init(
-        domain: String,
-        organizationID: String,
+        domain: String = "",
+        organizationID: String = "",
         defaultToken: String = "",
         defaultAssignedTo: String = "",
         edition: YXBConfiguration.Edition = .standard,

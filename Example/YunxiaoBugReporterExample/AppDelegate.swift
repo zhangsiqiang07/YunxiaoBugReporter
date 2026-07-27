@@ -10,13 +10,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
-        // 薄壳宿主：凭据由 DemoConstants 提供，注入 SDK 内置的通用配置存储，
-        // 再用 SDK 开箱即用的根视图 YXBRootView 承载完整 Bug 上报界面。
-        let store = YXBConfigStore(
-            domain: DemoConstants.domain,
-            organizationID: DemoConstants.organizationID,
-            defaultToken: DemoConstants.token
-        )
+        // 薄壳宿主：使用默认初始化的 YXBConfigStore()，随后在代码中按需填充凭据
+        // （SDK 不硬编码任何凭据，所有注入参数均有默认值）。
+        let store = YXBConfigStore()
+        store.domain = DemoConstants.domain
+        store.organizationID = DemoConstants.organizationID
+        store.token = DemoConstants.token
+        // 可选：注入默认负责人（云效用户 ID），未显式选择负责人时自动回退使用该值。
+        // store.defaultAssignedTo = "<云效用户 ID>"
         let window = UIWindow(frame: UIScreen.main.bounds)
         let root = UIHostingController(rootView: YXBRootView().environmentObject(store))
         root.view.backgroundColor = .systemBackground
