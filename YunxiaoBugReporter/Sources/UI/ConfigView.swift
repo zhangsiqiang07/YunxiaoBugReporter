@@ -132,10 +132,11 @@ struct ConfigView: View {
             Section {
                 // Token 默认可编辑：初始值为宿主初始化注入的默认 Token，可在此修改并保存；
                 // 留空则回退到注入的默认值（见 YXBConfigStore.resolvedToken）。
-                TextField("云效访问 Token", text: $store.token, axis: .vertical)
+                // iOS 15 兼容：不使用 axis:.vertical / lineLimit(reservesSpace:)（均为 iOS 16+）。
+                // Token 为单行字符串，单行 TextField 更合适。
+                TextField("云效访问 Token", text: $store.token)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                    .lineLimit(3, reservesSpace: true)
                 Text("默认使用初始化注入的 Token，可在此临时修改并保存（明文仅用于演示，生产环境请勿如此）；留空则回退到默认值。拉取成员/类型/项目列表需要该 Token 具备对应只读权限。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
