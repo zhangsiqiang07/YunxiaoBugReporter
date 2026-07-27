@@ -9,10 +9,12 @@ public struct BugListView: View {
     @EnvironmentObject private var store: YXBConfigStore
 
     /// 宿主注入的退出回调：点击导航栏「退出」时调用，由 Example 负责 dismiss 全屏根界面。
-    var onExit: (() -> Void)? = nil
+    /// 非可选，默认空实现；未注入时按钮仍可点但不产生任何动作（避免在 @ToolbarContentBuilder
+    /// 内使用 `if` 触发 iOS 16 的 buildIf 限制，因 iOS 15 的 ToolbarContentBuilder 不支持控制流）。
+    var onExit: () -> Void = {}
 
     public init(onExit: (() -> Void)? = nil) {
-        self.onExit = onExit
+        self.onExit = onExit ?? {}
     }
 
     @State private var workitems: [YXBWorkitem] = []
@@ -86,13 +88,11 @@ public struct BugListView: View {
                     }
                 }
             }
-            if let onExit = onExit {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        onExit()
-                    } label: {
-                        Text("退出").foregroundStyle(.red)
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    onExit()
+                } label: {
+                    Text("退出").foregroundStyle(.red)
                 }
             }
         }

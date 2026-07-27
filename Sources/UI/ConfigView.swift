@@ -12,12 +12,13 @@ public struct ConfigView: View {
     let mode: Mode
     var onComplete: (() -> Void)? = nil
     /// 宿主注入的退出回调：点击导航栏「退出」时调用，由 Example 负责 dismiss 全屏根界面。
-    var onExit: (() -> Void)? = nil
+    /// 非可选，默认空实现（避免在 @ToolbarContentBuilder 内使用 `if` 触发 iOS 16 的 buildIf 限制）。
+    var onExit: () -> Void = {}
 
     public init(mode: Mode, onComplete: (() -> Void)? = nil, onExit: (() -> Void)? = nil) {
         self.mode = mode
         self.onComplete = onComplete
-        self.onExit = onExit
+        self.onExit = onExit ?? {}
     }
 
     @EnvironmentObject private var store: YXBConfigStore
@@ -170,13 +171,11 @@ public struct ConfigView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("保存") { save() }
             }
-            if let onExit = onExit {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        onExit()
-                    } label: {
-                        Text("退出").foregroundStyle(.red)
-                    }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    onExit()
+                } label: {
+                    Text("退出").foregroundStyle(.red)
                 }
             }
         }
