@@ -16,8 +16,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         store.domain = DemoConstants.domain
         store.organizationID = DemoConstants.organizationID
         store.token = DemoConstants.token
-        // 可选：注入默认负责人（云效用户 ID），未显式选择负责人时自动回退使用该值。
-        // store.defaultAssignedTo = "<云效用户 ID>"
+        store.defaultAssignedTo = DemoConstants.defaultAssignedTo
+        
         let window = UIWindow(frame: UIScreen.main.bounds)
         let root = UIHostingController(rootView: YXBRootView().environmentObject(store))
         root.view.backgroundColor = .systemBackground

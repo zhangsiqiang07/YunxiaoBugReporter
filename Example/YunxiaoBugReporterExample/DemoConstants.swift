@@ -23,4 +23,8 @@ enum DemoConstants {
     /// 云效访问 Token。明文写死仅用于演示。
     /// TODO: 替换为你的实际云效访问 Token。
     static let token = "YOUR_YUNXIAO_TOKEN"
+
+    /// 可选：默认负责人（云效用户 ID），未显式选择负责人时自动回退使用该值。
+    /// TODO: 替换为你的实际云效用户 ID。
+    static let defaultAssignedTo = "YOUR_ASSIGNED_TO_USER_ID"
 }
