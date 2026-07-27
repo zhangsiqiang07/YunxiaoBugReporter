@@ -20,21 +20,63 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         store.token = DemoConstants.token
         store.defaultAssignedTo = DemoConstants.defaultAssignedTo
 
-        // 不替换 window.rootViewController，而是用一个占位根控制器，
-        // 再把「Bug 上报根界面」以全屏 modal 的方式 present 出来。
-        let placeholder = UIViewController()
-        placeholder.view.backgroundColor = .systemBackground
-
+        // 示例宿主根界面：一个按钮，点击后 present「Bug 上报根界面」。
         let window = UIWindow(frame: UIScreen.main.bounds)
-        window.rootViewController = placeholder
+        window.rootViewController = ExampleRootViewController(store: store)
         window.makeKeyAndVisible()
         self.window = window
 
+        return true
+    }
+}
+
+/// 示例宿主根界面（UIKit 实现，不放在 SDK 内）：
+/// 仅放置一个「打开 Bug 上报」按钮，点击后以全屏 modal 的方式 present
+/// `BugReporterRootViewController`；退出（dismiss）后回到本界面，可再次进入。
+final class ExampleRootViewController: UIViewController {
+    let store: YXBConfigStore
+
+    private let openButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("打开 Bug 上报", for: .normal)
+        b.setTitleColor(.white, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 18, weight: .semibold)
+        b.backgroundColor = UIColor.systemBlue
+        b.layer.cornerRadius = 12
+        b.contentEdgeInsets = UIEdgeInsets(top: 12, left: 28, bottom: 12, right: 28)
+        return b
+    }()
+
+    init(store: YXBConfigStore) {
+        self.store = store
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        title = "示例宿主"
+        view.backgroundColor = .systemBackground
+        setupOpenButton()
+    }
+
+    private func setupOpenButton() {
+        openButton.addTarget(self, action: #selector(openReporter), for: .touchUpInside)
+        openButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(openButton)
+        NSLayoutConstraint.activate([
+            openButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            openButton.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+        ])
+    }
+
+    @objc private func openReporter() {
         let reporter = BugReporterRootViewController(store: store)
         reporter.modalPresentationStyle = .fullScreen
-        placeholder.present(reporter, animated: false)
-
-        return true
+        present(reporter, animated: true, completion: nil)
     }
 }
 
