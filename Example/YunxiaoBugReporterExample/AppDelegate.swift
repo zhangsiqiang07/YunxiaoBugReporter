@@ -40,9 +40,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 /// Example 侧的根界面（UIKit 实现，不放在 SDK 内）：
 /// 以 `UITabBarController` 承载 SDK 内置的两个 SwiftUI 页面（Bug 列表 / 云效配置），
-/// 底部额外提供一个「退出」按钮，点击直接 dismiss 当前全屏界面，回到占位根控制器。
+/// 并在其之上叠加两个悬浮按钮：
+/// - 右上角「退出」：点击直接 dismiss 当前全屏界面，回到占位根控制器（任意 Tab 均可退出）。
+/// - 列表底部、TabBar 之上的「添加Bug」悬浮按钮：仅 Bug 列表 Tab 显示，
+///   点击以全屏 modal 进入 `SubmitView`（含「关闭」按钮）。
 final class BugReporterRootViewController: UIViewController {
     let store: YXBConfigStore
+
+    private var mainTabBarController: UITabBarController!
+
+    // MARK: - 悬浮按钮
+
+    private let exitButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("退出", for: .normal)
+        b.setTitleColor(.systemRed, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        b.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
+        b.layer.cornerRadius = 10
+        b.layer.shadowColor = UIColor.black.cgColor
+        b.layer.shadowOpacity = 0.12
+        b.layer.shadowRadius = 4
+        b.layer.shadowOffset = CGSize(width: 0, height: 1)
+        return b
+    }()
+
+    private let addBugButton: UIButton = {
+        let b = UIButton(type: .system)
+        b.setTitle("+ 添加Bug", for: .normal)
+        b.setTitleColor(.white, for: .normal)
+        b.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        b.backgroundColor = UIColor.systemBlue
+        b.layer.cornerRadius = 24
+        b.layer.shadowColor = UIColor.black.cgColor
+        b.layer.shadowOpacity = 0.22
+        b.layer.shadowRadius = 6
+        b.layer.shadowOffset = CGSize(width: 0, height: 3)
+        return b
+    }()
 
     init(store: YXBConfigStore) {
         self.store = store
@@ -53,8 +88,6 @@ final class BugReporterRootViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private var mainTabBarController: UITabBarController!
-
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
@@ -62,6 +95,7 @@ final class BugReporterRootViewController: UIViewController {
         // 1) 构建 TabBar：两个 Tab 分别承载 SDK 内置的 SwiftUI 页面。
         let tabBarController = UITabBarController()
         self.mainTabBarController = tabBarController
+        tabBarController.delegate = self
 
         let bugListVC = UIHostingController(
             rootView: NavigationView { BugListView() }
@@ -89,45 +123,86 @@ final class BugReporterRootViewController: UIViewController {
         // 尚未配置云效信息时，默认停在「云效配置」Tab，引导先完成配置。
         tabBarController.selectedIndex = store.isConfigured ? 0 : 1
 
-        // 2) 作为子控制器加入，并约束其区域（底部留出「退出」栏的高度）。
         addChild(tabBarController)
         view.addSubview(tabBarController.view)
         tabBarController.didMove(toParent: self)
 
-        // 3) 底部「退出」栏：点击直接退出当前全屏界面。
-        let exitBar = UIView()
-        exitBar.backgroundColor = .secondarySystemBackground
-        exitBar.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(exitBar)
+        // 2) 叠加悬浮按钮：右上角退出 + 列表底部「添加Bug」。
+        setupExitButton()
+        setupAddBugButton()
+        updateAddBugButtonVisibility()
+    }
 
-        let exitButton = UIButton(type: .system)
-        exitButton.setTitle("退出", for: .normal)
-        exitButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)
+    // MARK: - 悬浮按钮布局
+
+    private func setupExitButton() {
         exitButton.addTarget(self, action: #selector(exitTapped), for: .touchUpInside)
         exitButton.translatesAutoresizingMaskIntoConstraints = false
-        exitBar.addSubview(exitButton)
-
-        let exitBarHeight: CGFloat = 56
+        view.addSubview(exitButton)
+        view.bringSubviewToFront(exitButton)
         NSLayoutConstraint.activate([
-            // TabBar 区域
-            tabBarController.view.topAnchor.constraint(equalTo: view.topAnchor),
-            tabBarController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tabBarController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tabBarController.view.bottomAnchor.constraint(equalTo: exitBar.topAnchor),
-
-            // 退出栏（底部，位于安全区之内，避免与 Home Indicator 重叠）
-            exitBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            exitBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            exitBar.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-            exitBar.heightAnchor.constraint(equalToConstant: exitBarHeight),
-
-            // 退出按钮居中
-            exitButton.centerXAnchor.constraint(equalTo: exitBar.centerXAnchor),
-            exitButton.centerYAnchor.constraint(equalTo: exitBar.centerYAnchor)
+            exitButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
+            exitButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+            exitButton.heightAnchor.constraint(equalToConstant: 38),
+            exitButton.widthAnchor.constraint(equalToConstant: 60)
         ])
     }
 
+    private func setupAddBugButton() {
+        addBugButton.addTarget(self, action: #selector(addBugTapped), for: .touchUpInside)
+        addBugButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(addBugButton)
+        view.bringSubviewToFront(addBugButton)
+        NSLayoutConstraint.activate([
+            // 悬浮在 TabBar 之上（距 TabBar 顶边 12pt），水平居中。
+            addBugButton.bottomAnchor.constraint(equalTo: mainTabBarController.tabBar.topAnchor, constant: -12),
+            addBugButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            addBugButton.heightAnchor.constraint(equalToConstant: 48),
+            addBugButton.widthAnchor.constraint(equalToConstant: 150)
+        ])
+    }
+
+    /// 「添加Bug」仅当停留在 Bug 列表 Tab 时显示。
+    private func updateAddBugButtonVisibility() {
+        addBugButton.isHidden = (mainTabBarController.selectedIndex != 0)
+    }
+
+    // MARK: - 交互
+
     @objc private func exitTapped() {
+        // 若当前还叠着「提交 Bug」modal，先关掉它，再退出整个全屏根界面。
+        if let presented = presentedViewController {
+            presented.dismiss(animated: false) { [weak self] in
+                self?.dismiss(animated: true)
+            }
+        } else {
+            dismiss(animated: true)
+        }
+    }
+
+    @objc private func addBugTapped() {
+        let submitHosting = UIHostingController(
+            rootView: SubmitView().environmentObject(store)
+        )
+        // SubmitView 自身无关闭按钮（原依赖导航返回），此处补一个「关闭」以 modal 形式退出。
+        submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "关闭",
+            style: .done,
+            target: self,
+            action: #selector(dismissPresented)
+        )
+        let nav = UINavigationController(rootViewController: submitHosting)
+        nav.modalPresentationStyle = .fullScreen
+        present(nav, animated: true, completion: nil)
+    }
+
+    @objc private func dismissPresented() {
         dismiss(animated: true, completion: nil)
+    }
+}
+
+extension BugReporterRootViewController: UITabBarControllerDelegate {
+    func tabBarController(_ tabBarController: UITabBarController, didSelect viewController: UIViewController) {
+        updateAddBugButtonVisibility()
     }
 }

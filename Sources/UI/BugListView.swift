@@ -3,7 +3,6 @@ import SwiftUI
 /// 当前项目的 Bug 列表页（Tab 第一屏）。
 ///
 /// - 左上角：切换项目（从组织项目列表中选，默认选中最新建立的项目）；
-/// - 右上角：「提交 Bug」按钮，进入 `SubmitView`；
 /// - 列表：分页加载（滚动到底部自动加载下一页），支持下拉刷新；
 ///   点击某一行可查看工作项详情（演示中仅展示基本信息）。
 public struct BugListView: View {
@@ -21,7 +20,6 @@ public struct BugListView: View {
     @State private var hasMore = true
     @State private var errorMessage: String?
 
-    @State private var navigateToSubmit = false
     @State private var showProjectPicker = false
     @State private var projectOptions: [YXBProject] = []
     @State private var isLoadingProjects = false
@@ -83,26 +81,10 @@ public struct BugListView: View {
                     }
                 }
             }
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    navigateToSubmit = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("提交 Bug")
-            }
         }
         .sheet(isPresented: $showProjectPicker) {
             projectPickerSheet
         }
-        // iOS 15 兼容：用隐藏的 NavigationLink(isActive:) 实现编程式 push，
-        // 替代 iOS 16 才有的 .navigationDestination(isPresented:)。
-        .background(
-            NavigationLink(destination: SubmitView(), isActive: $navigateToSubmit) {
-                EmptyView()
-            }
-            .hidden()
-        )
         .refreshable {
             await reload()
         }
