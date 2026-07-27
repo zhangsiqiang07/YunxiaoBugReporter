@@ -53,7 +53,7 @@ final class BugReporterRootViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private var tabBarController: UITabBarController!
+    private var mainTabBarController: UITabBarController!
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -61,7 +61,7 @@ final class BugReporterRootViewController: UIViewController {
 
         // 1) 构建 TabBar：两个 Tab 分别承载 SDK 内置的 SwiftUI 页面。
         let tabBarController = UITabBarController()
-        self.tabBarController = tabBarController
+        self.mainTabBarController = tabBarController
 
         let bugListVC = UIHostingController(
             rootView: NavigationView { BugListView() }
