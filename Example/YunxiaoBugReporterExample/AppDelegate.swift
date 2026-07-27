@@ -40,30 +40,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 /// Example 侧的根界面（UIKit 实现，不放在 SDK 内）：
 /// 以 `UITabBarController` 承载 SDK 内置的两个 SwiftUI 页面（Bug 列表 / 云效配置），
-/// 并在其之上叠加两个悬浮按钮：
-/// - 右上角「退出」：点击直接 dismiss 当前全屏界面，回到占位根控制器（任意 Tab 均可退出）。
-/// - 列表底部、TabBar 之上的「添加Bug」悬浮按钮：仅 Bug 列表 Tab 显示，
-///   点击以全屏 modal 进入 `SubmitView`（含「关闭」按钮）。
+/// 「退出」按钮放在各页面自身的导航栏右侧（由 SDK 视图通过 onExit 回调触发），
+/// 列表底部、TabBar 之上另叠加一个「添加Bug」悬浮按钮：仅 Bug 列表 Tab 显示，
+/// 点击以全屏 modal 进入 `SubmitView`（含「关闭」按钮）。
 final class BugReporterRootViewController: UIViewController {
     let store: YXBConfigStore
 
     private var mainTabBarController: UITabBarController!
 
     // MARK: - 悬浮按钮
-
-    private let exitButton: UIButton = {
-        let b = UIButton(type: .system)
-        b.setTitle("退出", for: .normal)
-        b.setTitleColor(.systemRed, for: .normal)
-        b.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .medium)
-        b.backgroundColor = UIColor.systemBackground.withAlphaComponent(0.92)
-        b.layer.cornerRadius = 10
-        b.layer.shadowColor = UIColor.black.cgColor
-        b.layer.shadowOpacity = 0.12
-        b.layer.shadowRadius = 4
-        b.layer.shadowOffset = CGSize(width: 0, height: 1)
-        return b
-    }()
 
     private let addBugButton: UIButton = {
         let b = UIButton(type: .system)
@@ -97,8 +82,20 @@ final class BugReporterRootViewController: UIViewController {
         self.mainTabBarController = tabBarController
         tabBarController.delegate = self
 
+        // 退出回调：优先关掉可能叠着的「提交 Bug」modal，再 dismiss 整个全屏根界面。
+        let onExit: () -> Void = { [weak self] in
+            guard let self else { return }
+            if let presented = self.presentedViewController {
+                presented.dismiss(animated: false) { [weak self] in
+                    self?.dismiss(animated: true)
+                }
+            } else {
+                self.dismiss(animated: true)
+            }
+        }
+
         let bugListVC = UIHostingController(
-            rootView: NavigationView { BugListView() }
+            rootView: NavigationView { BugListView(onExit: onExit) }
                 .navigationViewStyle(.stack)
                 .environmentObject(store)
         )
@@ -109,7 +106,7 @@ final class BugReporterRootViewController: UIViewController {
         )
 
         let configVC = UIHostingController(
-            rootView: NavigationView { ConfigView(mode: .normal) }
+            rootView: NavigationView { ConfigView(mode: .normal, onExit: onExit) }
                 .navigationViewStyle(.stack)
                 .environmentObject(store)
         )
@@ -127,26 +124,12 @@ final class BugReporterRootViewController: UIViewController {
         view.addSubview(tabBarController.view)
         tabBarController.didMove(toParent: self)
 
-        // 2) 叠加悬浮按钮：右上角退出 + 列表底部「添加Bug」。
-        setupExitButton()
+        // 2) 叠加悬浮按钮：仅保留列表底部「添加Bug」。
         setupAddBugButton()
         updateAddBugButtonVisibility()
     }
 
     // MARK: - 悬浮按钮布局
-
-    private func setupExitButton() {
-        exitButton.addTarget(self, action: #selector(exitTapped), for: .touchUpInside)
-        exitButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(exitButton)
-        view.bringSubviewToFront(exitButton)
-        NSLayoutConstraint.activate([
-            exitButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 10),
-            exitButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
-            exitButton.heightAnchor.constraint(equalToConstant: 38),
-            exitButton.widthAnchor.constraint(equalToConstant: 60)
-        ])
-    }
 
     private func setupAddBugButton() {
         addBugButton.addTarget(self, action: #selector(addBugTapped), for: .touchUpInside)
@@ -168,17 +151,6 @@ final class BugReporterRootViewController: UIViewController {
     }
 
     // MARK: - 交互
-
-    @objc private func exitTapped() {
-        // 若当前还叠着「提交 Bug」modal，先关掉它，再退出整个全屏根界面。
-        if let presented = presentedViewController {
-            presented.dismiss(animated: false) { [weak self] in
-                self?.dismiss(animated: true)
-            }
-        } else {
-            dismiss(animated: true)
-        }
-    }
 
     @objc private func addBugTapped() {
         let submitHosting = UIHostingController(

@@ -11,10 +11,13 @@ public struct ConfigView: View {
 
     let mode: Mode
     var onComplete: (() -> Void)? = nil
+    /// 宿主注入的退出回调：点击导航栏「退出」时调用，由 Example 负责 dismiss 全屏根界面。
+    var onExit: (() -> Void)? = nil
 
-    public init(mode: Mode, onComplete: (() -> Void)? = nil) {
+    public init(mode: Mode, onComplete: (() -> Void)? = nil, onExit: (() -> Void)? = nil) {
         self.mode = mode
         self.onComplete = onComplete
+        self.onExit = onExit
     }
 
     @EnvironmentObject private var store: YXBConfigStore
@@ -166,6 +169,15 @@ public struct ConfigView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("保存") { save() }
+            }
+            if let onExit {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onExit()
+                    } label: {
+                        Text("退出").foregroundStyle(.red)
+                    }
+                }
             }
         }
         .alert("配置不完整", isPresented: $showErrors) {

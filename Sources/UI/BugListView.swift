@@ -8,7 +8,12 @@ import SwiftUI
 public struct BugListView: View {
     @EnvironmentObject private var store: YXBConfigStore
 
-    public init() {}
+    /// 宿主注入的退出回调：点击导航栏「退出」时调用，由 Example 负责 dismiss 全屏根界面。
+    var onExit: (() -> Void)? = nil
+
+    public init(onExit: (() -> Void)? = nil) {
+        self.onExit = onExit
+    }
 
     @State private var workitems: [YXBWorkitem] = []
     @State private var page = 1
@@ -78,6 +83,15 @@ public struct BugListView: View {
                             .font(.footnote.weight(.semibold))
                         Text(currentProjectName)
                             .lineLimit(1)
+                    }
+                }
+            }
+            if let onExit {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onExit()
+                    } label: {
+                        Text("退出").foregroundStyle(.red)
                     }
                 }
             }
