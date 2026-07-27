@@ -1,5 +1,4 @@
 import SwiftUI
-import YunxiaoBugReporter
 
 /// 当前项目的 Bug 列表页（Tab 第一屏）。
 ///
@@ -8,7 +7,7 @@ import YunxiaoBugReporter
 /// - 列表：分页加载（滚动到底部自动加载下一页），支持下拉刷新；
 ///   点击某一行可查看工作项详情（演示中仅展示基本信息）。
 struct BugListView: View {
-    @EnvironmentObject private var store: DemoConfigStore
+    @EnvironmentObject private var store: YXBConfigStore
 
     @State private var workitems: [YXBWorkitem] = []
     @State private var page = 1

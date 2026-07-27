@@ -1,5 +1,4 @@
 import SwiftUI
-import YunxiaoBugReporter
 
 /// Bug 详情页：从 Bug 列表点击某一行进入。
 ///
@@ -10,7 +9,7 @@ import YunxiaoBugReporter
 /// 因此即便某些字段在接口中未返回，页面也不会出现空白占位。
 struct BugDetailView: View {
     let item: YXBWorkitem
-    @EnvironmentObject private var store: DemoConfigStore
+    @EnvironmentObject private var store: YXBConfigStore
 
     /// 详情接口返回的数据；为 nil 时回退到列表行携带的 `item`（首屏占位）。
     @State private var detail: YXBWorkitem?

@@ -7,36 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		01B1DF218659341BD1D7F2F3 /* PhotoPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B27BBD0F41300F447C690E2 /* PhotoPicker.swift */; };
 		08376388D166C4646ADFF522 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FB5A692A1C654634DA09884 /* AppDelegate.swift */; };
-		1584DD27B4615B9ED04B4E86 /* ContentRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = C546C70965B30FCA0C77A1BD /* ContentRoot.swift */; };
-		1941F113EB604A205FCC64EF /* DemoConfigStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D132D16BFC0CFB49C1DDDD5D /* DemoConfigStore.swift */; };
-		2CE58FCC81430524D78CDBB3 /* SubmitView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 026105124F8E23D794F06CB3 /* SubmitView.swift */; };
 		69EA8D11E20671FB9604F57F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0D984B6E119A63CEEF5B3A66 /* Foundation.framework */; };
-		92C241C762161FD5F0F978AE /* ConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33B916E138293AFB058C5B52 /* ConfigView.swift */; };
 		C626ED5F0DE1C367B8AADB26 /* Pods_YunxiaoBugReporterExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */; };
 		A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF208824BC144D1EF87E2416 /* DemoConstants.swift */; };
-		1E142A7C37F3E502224903FE /* BugListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5895269494F02C3DD136595 /* BugListView.swift */; };
-		3D7B4C4E50C6C2E75A1EC08B /* BugDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B542EC3E4FA5694598920A0 /* BugDetailView.swift */; };
-		E2D3C4B5A69788796A5B4C3D /* AuthImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A69788796A5B4C /* AuthImageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		021B23548FDDFE98D5E06DA6 /* Pods-YunxiaoBugReporterExample.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.release.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.release.xcconfig"; sourceTree = "<group>"; };
-		026105124F8E23D794F06CB3 /* SubmitView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SubmitView.swift; sourceTree = "<group>"; };
 		0D984B6E119A63CEEF5B3A66 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		1C4BCEC7BCFD050D9B22E0DA /* Pods-YunxiaoBugReporterExample.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-YunxiaoBugReporterExample.debug.xcconfig"; path = "Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample.debug.xcconfig"; sourceTree = "<group>"; };
-		33B916E138293AFB058C5B52 /* ConfigView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfigView.swift; sourceTree = "<group>"; };
 		473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_YunxiaoBugReporterExample.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		5DBA17D3E1D8D2DDDCED8E89 /* YunxiaoBugReporterExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YunxiaoBugReporterExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7B27BBD0F41300F447C690E2 /* PhotoPicker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PhotoPicker.swift; sourceTree = "<group>"; };
 		7FB5A692A1C654634DA09884 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		C546C70965B30FCA0C77A1BD /* ContentRoot.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ContentRoot.swift; sourceTree = "<group>"; };
-		D132D16BFC0CFB49C1DDDD5D /* DemoConfigStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConfigStore.swift; sourceTree = "<group>"; };
 		FF208824BC144D1EF87E2416 /* DemoConstants.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConstants.swift; sourceTree = "<group>"; };
-		E5895269494F02C3DD136595 /* BugListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BugListView.swift; sourceTree = "<group>"; };
-		8B542EC3E4FA5694598920A0 /* BugDetailView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BugDetailView.swift; sourceTree = "<group>"; };
-		F1E2D3C4B5A69788796A5B4C /* AuthImageView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthImageView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -45,7 +29,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				69EA8D11E20671FB9604F57F /* Foundation.framework in Frameworks */,
-				C626ED5F0DE1C367B8AADB26 /* Pods_YunxiaoBugReporterExample.framework in Frameworks */,
+				C626ED5F0DE1C367B8AADB26 /* Pods_YunxiaoBugReporterExample.framework in Frameworks */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -55,7 +39,7 @@
 		1DDF63A2AF87421A8241AD2D /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				0D984B6E119A63CEEF5B3A66 /* Foundation.framework */,
+				0D984B6E119A63CEEF5B3A66 /* Foundation.framework */
 			);
 			name = iOS;
 			sourceTree = "<group>";
@@ -64,7 +48,7 @@
 			isa = PBXGroup;
 			children = (
 				021B23548FDDFE98D5E06DA6 /* Pods-YunxiaoBugReporterExample.release.xcconfig */,
-				1C4BCEC7BCFD050D9B22E0DA /* Pods-YunxiaoBugReporterExample.debug.xcconfig */,
+				1C4BCEC7BCFD050D9B22E0DA /* Pods-YunxiaoBugReporterExample.debug.xcconfig */
 			);
 			name = Pods;
 			path = Pods;
@@ -74,7 +58,7 @@
 			isa = PBXGroup;
 			children = (
 				1DDF63A2AF87421A8241AD2D /* iOS */,
-				473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */,
+				473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -83,15 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				7FB5A692A1C654634DA09884 /* AppDelegate.swift */,
-				D132D16BFC0CFB49C1DDDD5D /* DemoConfigStore.swift */,
-			E5895269494F02C3DD136595 /* BugListView.swift */,
-			8B542EC3E4FA5694598920A0 /* BugDetailView.swift */,
-			F1E2D3C4B5A69788796A5B4C /* AuthImageView.swift */,
-			FF208824BC144D1EF87E2416 /* DemoConstants.swift */,
-				C546C70965B30FCA0C77A1BD /* ContentRoot.swift */,
-				33B916E138293AFB058C5B52 /* ConfigView.swift */,
-				026105124F8E23D794F06CB3 /* SubmitView.swift */,
-				7B27BBD0F41300F447C690E2 /* PhotoPicker.swift */,
+			FF208824BC144D1EF87E2416 /* DemoConstants.swift */
 			);
 			name = YunxiaoBugReporterExample;
 			path = YunxiaoBugReporterExample;
@@ -100,7 +76,7 @@
 		F238B19D6F3AA8A23D4CABBA /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5DBA17D3E1D8D2DDDCED8E89 /* YunxiaoBugReporterExample.app */,
+				5DBA17D3E1D8D2DDDCED8E89 /* YunxiaoBugReporterExample.app */
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -111,7 +87,7 @@
 				F238B19D6F3AA8A23D4CABBA /* Products */,
 				8D7B9B05A4B99A147351255D /* Frameworks */,
 				BB9C26BA01A77F51D949A5FE /* YunxiaoBugReporterExample */,
-				5B14016EC2F0530170719FA7 /* Pods */,
+				5B14016EC2F0530170719FA7 /* Pods */
 			);
 			sourceTree = "<group>";
 		};
@@ -126,7 +102,7 @@
 				26374B6751C56786D35CB6D3 /* Sources */,
 				FD3BDF84A85947EAD4A2610D /* Frameworks */,
 				1645AA40634EA3B6D2D473E0 /* Resources */,
-				E359CF52C1CD299A8D9C3807 /* [CP] Embed Pods Frameworks */,
+				E359CF52C1CD299A8D9C3807 /* [CP] Embed Pods Frameworks */
 			);
 			buildRules = (
 			);
@@ -152,7 +128,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
-				Base,
+				Base
 			);
 			mainGroup = FB64BE6682DFD16BA8F3424E;
 			minimizedProjectReferenceProxies = 0;
@@ -161,7 +137,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				31E0D89D190ED676C155898F /* YunxiaoBugReporterExample */,
+				31E0D89D190ED676C155898F /* YunxiaoBugReporterExample */
 			);
 		};
 /* End PBXProject section */
@@ -186,13 +162,13 @@
 			);
 			inputPaths = (
 				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
+				"${PODS_ROOT}/Manifest.lock"
 			);
 			name = "[CP] Check Pods Manifest.lock";
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-YunxiaoBugReporterExample-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-YunxiaoBugReporterExample-checkManifestLockResult.txt"
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -206,11 +182,11 @@
 			);
 			inputPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-YunxiaoBugReporterExample/Pods-YunxiaoBugReporterExample-frameworks.sh",
-				"${BUILT_PRODUCTS_DIR}/YunxiaoBugReporter/YunxiaoBugReporter.framework",
+				"${BUILT_PRODUCTS_DIR}/YunxiaoBugReporter/YunxiaoBugReporter.framework"
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/YunxiaoBugReporter.framework",
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/YunxiaoBugReporter.framework"
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -225,15 +201,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				08376388D166C4646ADFF522 /* AppDelegate.swift in Sources */,
-				1941F113EB604A205FCC64EF /* DemoConfigStore.swift in Sources */,
-			1E142A7C37F3E502224903FE /* BugListView.swift in Sources */,
-			3D7B4C4E50C6C2E75A1EC08B /* BugDetailView.swift in Sources */,
-			E2D3C4B5A69788796A5B4C3D /* AuthImageView.swift in Sources */,
-			A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */,
-				1584DD27B4615B9ED04B4E86 /* ContentRoot.swift in Sources */,
-				92C241C762161FD5F0F978AE /* ConfigView.swift in Sources */,
-				2CE58FCC81430524D78CDBB3 /* SubmitView.swift in Sources */,
-				01B1DF218659341BD1D7F2F3 /* PhotoPicker.swift in Sources */,
+			A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -355,7 +323,7 @@
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
-					"$(inherited)",
+					"$(inherited)"
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -399,7 +367,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				6B20655B1E395E4960EACC6E /* Debug */,
-				24EF1612C7F8E7F0A39037C8 /* Release */,
+				24EF1612C7F8E7F0A39037C8 /* Release */
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -408,7 +376,7 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				C995D89B774A95959B20E770 /* Release */,
-				2D3125E9701C96A64FEDC89E /* Debug */,
+				2D3125E9701C96A64FEDC89E /* Debug */
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

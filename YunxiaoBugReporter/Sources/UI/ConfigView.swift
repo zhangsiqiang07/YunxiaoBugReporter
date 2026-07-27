@@ -1,5 +1,4 @@
 import SwiftUI
-import YunxiaoBugReporter
 
 /// 云效配置页面。两种模式：
 /// - `.forced`：未配置时强制展示，隐藏返回按钮，保存后回调 `onComplete` 进入主界面；
@@ -13,7 +12,7 @@ struct ConfigView: View {
     let mode: Mode
     var onComplete: (() -> Void)? = nil
 
-    @EnvironmentObject private var store: DemoConfigStore
+    @EnvironmentObject private var store: YXBConfigStore
     @State private var showErrors = false
     @State private var errorMessages: [String] = []
 
@@ -28,15 +27,15 @@ struct ConfigView: View {
     var body: some View {
         Form {
             Section {
-                // 域名、组织 ID 写死在 DemoConstants，自动只读展示，无需手动填写。
-                infoRow("服务域名", value: DemoConstants.domain)
+                // 域名、组织 ID 由宿主注入，自动只读展示，无需手动填写。
+                infoRow("服务域名", value: store.domain)
                 Picker("版本", selection: $store.editionRaw) {
                     Text("中心版").tag("standard")
                     Text("Region 版").tag("region")
                 }
                 .pickerStyle(.segmented)
                 if store.editionRaw == "standard" {
-                    infoRow("组织 ID", value: DemoConstants.organizationID)
+                    infoRow("组织 ID", value: store.organizationID)
                 }
                 // 项目：优先以组织项目列表选择（默认选中最新建立的项目）；列表为空时回退手动输入。
                 if projectOptions.isEmpty {
@@ -120,7 +119,7 @@ struct ConfigView: View {
                 .disabled(isLoadingProjects)
             } header: { Text("云效服务") } footer: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID 写死在代码中并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用代码中的值）。")
+                    Text("「工作项类型」留空时由 SDK 自动选择 Bug 类型；「项目」点击「从组织项目列表加载」后从组织内项目选择，默认选中最新建立的项目；负责人为必填；域名 / 组织 ID 由宿主初始化时注入并自动展示，访问 Token 可在下方「访问凭证」中修改（默认使用初始化注入的值）。")
                     if let loadMessage {
                         Text(loadMessage)
                             .foregroundStyle(.orange)
@@ -131,13 +130,13 @@ struct ConfigView: View {
             }
 
             Section {
-                // Token 默认可编辑：初始值为代码中的 DemoConstants.token，可在此修改并保存；
-                // 留空则回退到代码默认值（见 DemoConfigStore.resolvedToken）。
+                // Token 默认可编辑：初始值为宿主初始化注入的默认 Token，可在此修改并保存；
+                // 留空则回退到注入的默认值（见 YXBConfigStore.resolvedToken）。
                 TextField("云效访问 Token", text: $store.token, axis: .vertical)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .lineLimit(3, reservesSpace: true)
-                Text("默认使用代码中的 Token，可在此临时修改并保存（明文仅用于演示，生产环境请勿如此）；留空则回退到代码默认值。拉取成员/类型/项目列表需要该 Token 具备对应只读权限。")
+                Text("默认使用初始化注入的 Token，可在此临时修改并保存（明文仅用于演示，生产环境请勿如此）；留空则回退到默认值。拉取成员/类型/项目列表需要该 Token 具备对应只读权限。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             } header: { Text("访问凭证") }
@@ -191,7 +190,7 @@ struct ConfigView: View {
         }
     }
 
-    /// 只读信息行：左侧标题，右侧值（右对齐、可折行）。用于展示写死在代码中的配置。
+    /// 只读信息行：左侧标题，右侧值（右对齐、可折行）。用于展示由宿主注入的配置。
     private func infoRow(_ title: String, value: String, lines: Int = 1) -> some View {
         HStack(alignment: .top) {
             Text(title)

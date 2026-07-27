@@ -1,5 +1,4 @@
 import SwiftUI
-import YunxiaoBugReporter
 
 /// 通过 SDK 下载并展示工作项描述中的图片。
 ///

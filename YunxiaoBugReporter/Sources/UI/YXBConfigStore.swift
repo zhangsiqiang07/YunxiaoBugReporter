@@ -1,19 +1,27 @@
+import Foundation
 import SwiftUI
-import YunxiaoBugReporter
 
-/// 演示用配置存储：可变配置（项目 ID、负责人、访问 Token 等）以明文保存在 `UserDefaults`。
+/// SDK 内置的配置存储（可观察对象），用于在宿主 App 与 SDK 自带 UI 之间共享可变配置。
 ///
-/// 域名、组织 ID 极少变更，写死在 `DemoConstants` 并在配置页只读展示；
-/// **访问 Token 默认可编辑**，初始值取自 `DemoConstants.token`，用户可在配置页修改并保存，
-/// 保存后优先使用用户填写值（留空则回退到代码中的默认值）。
+/// 与早期 Example 中的 `DemoConfigStore` 不同，本类**不硬编码任何凭据**：
+/// 域名、组织 ID、默认 Token 均由宿主在初始化时注入（`domain` / `organizationID` / `defaultToken`），
+/// 因此 SDK 可独立分发、不包含演示用的真实 Token。
 ///
 /// 本类负责把存储内容转换为 SDK 的 `YXBConfiguration`：
 /// - `isConfigured` / `validationErrors()` 判断是否满足提交所需的最小信息；
 /// - `save()` 持久化可变配置（明文写入 UserDefaults）；
-/// - `buildConfiguration()` 构造 SDK 配置，域名/组织ID 取自 `DemoConstants`，
-///   `tokenProvider` 实时返回（用户填写的）Token，留空时回退 `DemoConstants.token`。
-final class DemoConfigStore: ObservableObject {
-    static let shared = DemoConfigStore()
+/// - `buildConfiguration()` 构造 SDK 配置，域名/组织ID 来自注入值，
+///   `tokenProvider` 实时返回（用户填写的）Token，留空时回退 `defaultToken`。
+///
+/// 域名 / 组织 ID 由宿主注入且通常不变化，故不持久化；其余可变字段（项目、负责人、Token、
+/// 缓存设置等）持久化，便于宿主 App 重启后保留用户上次的选择。
+public final class YXBConfigStore: ObservableObject {
+    /// 宿主注入的云效服务域名（如 `https://openapi-rdc.aliyuncs.com`）。
+    public let domain: String
+    /// 宿主注入的组织 ID（中心版必填）。
+    public let organizationID: String
+    /// 注入的默认 Token；当用户未显式修改 Token 时作为回退值。
+    private let defaultToken: String
 
     @Published var editionRaw = "standard"
     @Published var projectID = ""
@@ -25,25 +33,39 @@ final class DemoConfigStore: ObservableObject {
     @Published var workitemTypeCacheTTL = 3600.0
     @Published var tokenCacheTTL = 300.0
 
-    /// 云效访问 Token。初始默认取自 `DemoConstants.token`（代码中的值），可在配置页修改。
-    @Published var token = DemoConstants.token
+    /// 云效访问 Token。初始默认取自注入的 `defaultToken`，可在配置页修改。
+    @Published var token: String
 
-    private let defaultsKey = "com.yunxiao.demo.config.v1"
+    private let defaultsKey: String
 
-    private init() { load() }
+    public init(
+        domain: String,
+        organizationID: String,
+        defaultToken: String = "",
+        edition: YXBConfiguration.Edition = .standard,
+        defaultsKey: String = "com.yunxiao.bugreporter.config.v1"
+    ) {
+        self.domain = domain
+        self.organizationID = organizationID
+        self.defaultToken = defaultToken
+        self.defaultsKey = defaultsKey
+        self.token = defaultToken
+        self.editionRaw = edition == .region ? "region" : "standard"
+        load()
+    }
 
-    var edition: YXBConfiguration.Edition {
+    public var edition: YXBConfiguration.Edition {
         editionRaw == "region" ? .region : .standard
     }
 
     /// 是否已具备提交所需的最小配置。
-    var isConfigured: Bool {
+    public var isConfigured: Bool {
         validationErrors().isEmpty
     }
 
     /// 返回所有不满足的配置问题；为空表示配置完整。
-    /// 域名 / 组织 ID / Token 来自 `DemoConstants`，始终存在，不在此校验。
-    func validationErrors() -> [String] {
+    /// 域名 / 组织 ID / Token 来自注入值，始终存在，不在此校验。
+    public func validationErrors() -> [String] {
         var issues: [String] = []
         if projectID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             issues.append("请填写项目 ID")
@@ -68,13 +90,13 @@ final class DemoConfigStore: ObservableObject {
         cacheBackendRaw = persisted.cacheBackendRaw
         workitemTypeCacheTTL = persisted.workitemTypeCacheTTL
         tokenCacheTTL = persisted.tokenCacheTTL
-        // 仅在用户曾显式保存过 Token 时才覆盖默认值；留空则继续回退到代码中的默认值。
+        // 仅在用户曾显式保存过 Token 时才覆盖默认值；留空则继续回退到注入的默认 Token。
         if !persisted.token.isEmpty {
             token = persisted.token
         }
     }
 
-    func save() {
+    public func save() {
         let persisted = PersistedConfig(
             editionRaw: editionRaw,
             projectID: projectID,
@@ -92,14 +114,14 @@ final class DemoConfigStore: ObservableObject {
         }
     }
 
-    /// 解析后的 Token：用户填写值优先，留空回退到代码中的默认 Token。
+    /// 解析后的 Token：用户填写值优先，留空回退到注入的默认 Token。
     private var resolvedToken: String {
         let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? DemoConstants.token : trimmed
+        return trimmed.isEmpty ? defaultToken : trimmed
     }
 
-    /// 构造 SDK 配置。域名 / 组织 ID 取自 `DemoConstants`，Token 取自用户可编辑的值
-    /// （`resolvedToken`，留空回退代码默认值）。
+    /// 构造 SDK 配置。域名 / 组织 ID 取自注入值，Token 取自用户可编辑的值
+    /// （`resolvedToken`，留空回退默认 Token）。
     func buildConfiguration() throws -> YXBConfiguration {
         let trimmedProject = projectID.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedAssignee = assignedTo.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -111,9 +133,9 @@ final class DemoConfigStore: ObservableObject {
             : nil
 
         return YXBConfiguration(
-            domain: DemoConstants.domain,
+            domain: domain,
             edition: edition,
-            organizationID: DemoConstants.organizationID,
+            organizationID: organizationID,
             projectID: trimmedProject,
             workitemTypeID: trimmedType.isEmpty ? nil : trimmedType,
             assignedTo: trimmedAssignee,
@@ -137,9 +159,9 @@ final class DemoConfigStore: ObservableObject {
         // 避免了直接捕获 self 或调用 `async throws` 的 base.tokenProvider 闭包。
         let resolvedToken = self.resolvedToken
         return YXBConfiguration(
-            domain: DemoConstants.domain,
+            domain: domain,
             edition: edition,
-            organizationID: DemoConstants.organizationID,
+            organizationID: organizationID,
             projectID: safeProject,
             workitemTypeID: base.workitemTypeID,
             assignedTo: safeAssignee,
@@ -160,9 +182,9 @@ final class DemoConfigStore: ObservableObject {
         let safeAssignee = base.assignedTo.isEmpty ? "PLACEHOLDER_NOT_USED" : base.assignedTo
         let resolvedToken = self.resolvedToken
         return YXBConfiguration(
-            domain: DemoConstants.domain,
+            domain: domain,
             edition: edition,
-            organizationID: DemoConstants.organizationID,
+            organizationID: organizationID,
             projectID: base.projectID,
             workitemTypeID: base.workitemTypeID,
             assignedTo: safeAssignee,
