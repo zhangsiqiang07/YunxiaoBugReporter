@@ -1,5 +1,6 @@
 import Foundation
 import Network
+import YunxiaoBugReporter
 
 /// 宿主侧证据采集器（示例 / 模板代码，**不属于 SDK**）。
 ///
