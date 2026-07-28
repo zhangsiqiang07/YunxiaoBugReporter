@@ -109,7 +109,7 @@ public struct SubmitView: View {
                         ForEach(images) { item in
                             ZStack(alignment: .topTrailing) {
                                 Button {
-                                    annotateTarget = AnnotateTarget(id: item.id, image: item.image, rect: item.annotation)
+                                    annotateTarget = AnnotateTarget(id: item.id, image: item.image, annotations: item.annotations)
                                 } label: {
                                     ZStack {
                                         Image(uiImage: item.image)
@@ -117,9 +117,7 @@ public struct SubmitView: View {
                                             .scaledToFill()
                                             .frame(width: 76, height: 76)
                                             .clipShape(RoundedRectangle(cornerRadius: 12))
-                                        if let rect = item.annotation {
-                                            annotationRect(rect, in: CGSize(width: 76, height: 76), imageSize: item.image.size)
-                                        }
+                                        annotationOverlay(for: item.annotations, in: CGSize(width: 76, height: 76), imageSize: item.image.size)
                                     }
                                 }
                                 Button {
@@ -174,9 +172,9 @@ public struct SubmitView: View {
             PhotoPicker(images: $images)
         }
         .fullScreenCover(item: $annotateTarget) { target in
-            ImageAnnotatorView(image: target.image, initialRect: target.rect) { newRect in
+            ImageAnnotatorView(image: target.image, initialAnnotations: target.annotations) { new in
                 if let index = images.firstIndex(where: { $0.id == target.id }) {
-                    images[index].annotation = newRect
+                    images[index].annotations = new
                 }
                 annotateTarget = nil
             }
@@ -365,8 +363,8 @@ public struct SubmitView: View {
 
             var attachments: [YXBAttachment] = []
             for (index, item) in images.enumerated() {
-                // 若用户对截图做了红色框选，将其烘焙进图片后再上传。
-                let baked = yxb_bakeRedBox(into: item.image, normalizedRect: item.annotation)
+                // 若用户对截图做了标注（红框 / 红箭头），将其烘焙进图片后再上传。
+                let baked = yxb_bakeAnnotations(into: item.image, annotations: item.annotations)
                 if let data = baked.jpegData(compressionQuality: 0.8) {
                     attachments.append(
                         YXBAttachment(data: data, fileName: "screenshot-\(index + 1).jpg", mimeType: "image/jpeg")
@@ -402,12 +400,12 @@ public struct SubmitView: View {
 struct IdentifiedImage: Identifiable {
     let id = UUID()
     let image: UIImage
-    /// 红色框选区域（归一化 0..1，相对图片自然尺寸）；为 `nil` 表示未标注。
-    var annotation: CGRect?
+    /// 标注列表（红框 / 红箭头，归一化 0..1，相对图片内容绘制区）；空表示未标注。
+    var annotations: [ImageAnnotation] = []
 
-    init(image: UIImage, annotation: CGRect? = nil) {
+    init(image: UIImage, annotations: [ImageAnnotation] = []) {
         self.image = image
-        self.annotation = annotation
+        self.annotations = annotations
     }
 }
 
@@ -415,24 +413,33 @@ struct IdentifiedImage: Identifiable {
 struct AnnotateTarget: Identifiable {
     let id: UUID
     let image: UIImage
-    let rect: CGRect?
+    let annotations: [ImageAnnotation]
 }
 
-/// 缩略图（scaledToFill 方形）上的红色框选覆盖层。
-private func annotationRect(_ normalized: CGRect, in frame: CGSize, imageSize: CGSize) -> some View {
+/// 缩略图（scaledToFill 方形）上的红框 / 红箭头覆盖层。
+private func annotationOverlay(for annotations: [ImageAnnotation], in frame: CGSize, imageSize: CGSize) -> some View {
     let scale = max(frame.width / imageSize.width, frame.height / imageSize.height)
     let drawnW = imageSize.width * scale
     let drawnH = imageSize.height * scale
     let offsetX = (frame.width - drawnW) / 2
     let offsetY = (frame.height - drawnH) / 2
-    let rect = CGRect(
-        x: offsetX + normalized.origin.x * drawnW,
-        y: offsetY + normalized.origin.y * drawnH,
-        width: normalized.width * drawnW,
-        height: normalized.height * drawnH
-    )
-    return RoundedRectangle(cornerRadius: 3)
-        .stroke(Color.red, lineWidth: 2)
-        .frame(width: rect.width, height: rect.height)
-        .position(x: rect.midX, y: rect.midY)
+    return ForEach(annotations) { ann in
+        let s = CGPoint(x: offsetX + ann.start.x * drawnW, y: offsetY + ann.start.y * drawnH)
+        let e = CGPoint(x: offsetX + ann.end.x * drawnW, y: offsetY + ann.end.y * drawnH)
+        if ann.kind == .rect {
+            let r = CGRect(
+                x: min(s.x, e.x),
+                y: min(s.y, e.y),
+                width: abs(e.x - s.x),
+                height: abs(e.y - s.y)
+            )
+            RoundedRectangle(cornerRadius: 3)
+                .stroke(Color.red, lineWidth: 2)
+                .frame(width: r.width, height: r.height)
+                .position(x: r.midX, y: r.midY)
+        } else {
+            yxb_arrowPath(from: s, to: e)
+                .stroke(Color.red, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+        }
+    }
 }
