@@ -10,6 +10,7 @@ import PhotosUI
 /// 4. 提交时组装为规范描述并附带分类标签，调用云效创建工作项 + 上传截图。
 public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
+    @Environment(\.dismiss) private var dismiss
 
     /// - Parameters:
     ///   - sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
@@ -587,6 +588,7 @@ public struct SubmitView: View {
 
     // MARK: - 提交
 
+    @MainActor
     private func submit() async {
         isSubmitting = true
         resultText = nil
@@ -650,6 +652,10 @@ public struct SubmitView: View {
             失败附件: \(result.failedAttachments.count)
             """
             resultIsError = false
+
+            // 提交成功后自动关闭提交页（先停留 1 秒让用户看到结果）。
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            dismiss()
         } catch {
             resultText = "提交失败：\(error.localizedDescription)"
             resultIsError = true
