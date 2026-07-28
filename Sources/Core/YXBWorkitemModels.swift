@@ -176,7 +176,7 @@ struct YXBMembersResponse: Decodable {
 }
 
 /// 工作项类型字段定义中的单个选项（单选/多选/层级等）。
-public struct YXBFieldOption: Identifiable, Sendable, Decodable {
+public struct YXBFieldOption: Identifiable, Sendable, Hashable, Decodable {
     public let id: String
     public let value: String
     public let displayValue: String

@@ -17,7 +17,8 @@ public struct SubmitView: View {
         _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
     }
 
-    @State private var title = ""
+    /// 标题的「补充描述」自由文本；完整标题由标签自动拼接（见 `composedTitle`）。
+    @State private var titleExtra = ""
     // MARK: - 现象描述（可语音输入）
     @State private var userDescription = ""
     @State private var reproSteps = ""
@@ -109,15 +110,26 @@ public struct SubmitView: View {
 
             requiredFieldsSection
 
-            Section("问题分类（可选，用于标签与描述）") {
+            Section("问题分类（可选，用于标题标签与描述）") {
                 ChipGroup(title: "问题类型", options: YXBIssueType.allCases, display: { $0.displayName }, selection: $issueType)
-                ChipGroup(title: "严重程度", options: YXBSeverity.allCases, display: { $0.displayName }, selection: $severity)
+                // 若云效工作项类型已把「严重程度」作为必填字段（上边会渲染为胶囊），
+                // 则此处不再重复提供，避免两处选择。
+                if severityField == nil {
+                    ChipGroup(title: "严重程度", options: YXBSeverity.allCases, display: { $0.displayName }, selection: $severity)
+                }
                 ChipGroup(title: "发生频率", options: YXBFrequency.allCases, display: { $0.displayName }, selection: $frequency)
             }
 
-            Section("Bug 描述") {
-                TextField("标题（必填）", text: $title)
+            Section("Bug 标题（自动拼接分类标签）") {
+                Text(composedTitle)
+                    .font(.subheadline)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(.secondarySystemBackground)))
+                TextField("补充描述（可选）", text: $titleExtra)
+            }
 
+            Section("Bug 描述") {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("现象描述（点击键盘麦克风可语音输入）")
                         .font(.footnote)
@@ -239,7 +251,7 @@ public struct SubmitView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .disabled(isSubmitting || title.trimmingCharacters(in: .whitespaces).isEmpty || !requiredFieldsFilled)
+                .disabled(isSubmitting || !requiredFieldsFilled)
             }
 
             if let resultText = resultText {
@@ -277,6 +289,26 @@ public struct SubmitView: View {
         var base = context ?? YXBBugContextCollector.collect(screenshotCount: images.count)
         base.screenshotCount = images.count
         return base
+    }
+
+    /// 自动拼接的标题：`【iOS】` + `【问题类型】` + `【严重程度】` + `【发生频率】` + 补充描述。
+    private var composedTitle: String {
+        var parts: [String] = ["【iOS】"]
+        if let t = issueType { parts.append("【\(t.displayName)】") }
+        if let s = severity { parts.append("【\(s.displayName)】") }
+        if let f = frequency { parts.append("【\(f.displayName)】") }
+        let extra = titleExtra.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !extra.isEmpty { parts.append(extra) }
+        return parts.joined()
+    }
+
+    /// 云效工作项类型中「严重程度 / 优先级」类必填字段（若有），其选择将渲染为胶囊样式，
+    /// 与问题分类的标签选择一致；此时问题分类里不再重复提供「严重程度」胶囊。
+    private var severityField: YXBFieldDefinition? {
+        requiredListFields.first { field in
+            let n = field.name.lowercased()
+            return n.contains("severity") || n.contains("严重") || n.contains("优先级") || n.contains("priority")
+        }
     }
 
     /// 组装提交描述：现象 / 复现步骤 / 实际 / 期望 + 环境信息。
@@ -355,21 +387,34 @@ public struct SubmitView: View {
         } else {
             ForEach(requiredListFields) { field in
                 Section(field.name) {
-                    Picker("", selection: binding(for: field.id)) {
-                        Text("请选择").tag("")
-                        ForEach(field.options) { option in
-                            Text(option.displayValue).tag(option.id)
-                        }
-                    }
+                    ChipGroup(
+                        title: nil,
+                        options: field.options,
+                        display: { $0.displayValue },
+                        selection: chipBinding(for: field)
+                    )
                 }
             }
         }
     }
 
-    private func binding(for fieldID: String) -> Binding<String> {
-        Binding(
-            get: { customFieldValues[fieldID] ?? "" },
-            set: { customFieldValues[fieldID] = $0.isEmpty ? nil : $0 }
+    /// 必填列表字段的胶囊选择绑定：选项直接映射到 `customFieldValues[field.id]`；
+    /// 若为严重程度字段，best-effort 同步到 `severity` 枚举用于标题标签。
+    private func chipBinding(for field: YXBFieldDefinition) -> Binding<YXBFieldOption?> {
+        Binding<YXBFieldOption?>(
+            get: {
+                guard let id = customFieldValues[field.id], !id.isEmpty else { return nil }
+                return field.options.first { $0.id == id }
+            },
+            set: { option in
+                customFieldValues[field.id] = option?.id
+                if field.id == severityField?.id, let opt = option {
+                    severity = YXBSeverity.allCases.first {
+                        $0.displayName == opt.displayValue
+                            || $0.rawValue == opt.value.lowercased()
+                    }
+                }
+            }
         )
     }
 
@@ -508,7 +553,7 @@ public struct SubmitView: View {
             }
 
             let report = YXBBugReport(
-                title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+                title: composedTitle,
                 description: descriptionText,
                 format: formatRaw == "MD" ? .markdown : .plainText,
                 customFields: customFieldValues,
@@ -532,18 +577,20 @@ public struct SubmitView: View {
     }
 }
 
-/// 横向滚动的胶囊选择器，用于快捷分类。
+/// 横向滚动的胶囊选择器，用于快捷分类 / 必填字段。
 private struct ChipGroup<T: Identifiable & Hashable>: View {
-    let title: String
+    let title: String?
     let options: [T]
     let display: (T) -> String
     @Binding var selection: T?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            if let title = title, !title.isEmpty {
+                Text(title)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(options) { option in
