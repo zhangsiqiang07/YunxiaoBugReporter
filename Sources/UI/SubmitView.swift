@@ -51,9 +51,9 @@ public struct SubmitView: View {
     @State private var formatRaw = "MD"
 
     // MARK: - 快捷分类（问题类型 / 严重程度 / 发生频率）
-    @State private var issueType: YXBIssueType?
+    @State private var issueType: YXBIssueType? = .function
     @State private var severity: YXBSeverity?
-    @State private var frequency: YXBFrequency?
+    @State private var frequency: YXBFrequency? = .always
 
     @State private var images: [IdentifiedImage] = []
     @State private var isSubmitting = false
