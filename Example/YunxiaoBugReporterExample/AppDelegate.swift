@@ -137,10 +137,18 @@ final class ExampleRootViewController: UIViewController {
 
     /// 以全屏 modal 直接进入「提交 Bug」页面，并附带「关闭」按钮退出。
     private func presentSubmit(sourceImages: [UIImage], hostContext: YXBHostContext?) {
+        let nav = UINavigationController()
+        nav.modalPresentationStyle = .fullScreen
         let submitHosting = UIHostingController(
-            rootView: SubmitView(sourceImages: sourceImages, hostContext: hostContext)
-                .navigationViewStyle(.stack)
-                .environmentObject(store)
+            rootView: SubmitView(
+                sourceImages: sourceImages,
+                hostContext: hostContext,
+                onDismiss: { [weak nav] in
+                    nav?.dismiss(animated: true)
+                }
+            )
+            .navigationViewStyle(.stack)
+            .environmentObject(store)
         )
         submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(
             title: "关闭",
@@ -148,8 +156,7 @@ final class ExampleRootViewController: UIViewController {
             target: self,
             action: #selector(dismissPresented)
         )
-        let nav = UINavigationController(rootViewController: submitHosting)
-        nav.modalPresentationStyle = .fullScreen
+        nav.viewControllers = [submitHosting]
         present(nav, animated: true, completion: nil)
     }
 
@@ -286,8 +293,16 @@ final class BugReporterRootViewController: UIViewController {
     @objc private func addBugTapped() {
         // 在点击「添加Bug」这一触发点冻结宿主证据快照，传给提交页。
         let hostContext = ZJBugEvidenceCollector.shared.snapshot()
+        let nav = UINavigationController()
+        nav.modalPresentationStyle = .fullScreen
         let submitHosting = UIHostingController(
-            rootView: SubmitView(sourceImages: sourceImages, hostContext: hostContext).environmentObject(store)
+            rootView: SubmitView(
+                sourceImages: sourceImages,
+                hostContext: hostContext,
+                onDismiss: { [weak nav] in
+                    nav?.dismiss(animated: true)
+                }
+            ).environmentObject(store)
         )
         // SubmitView 自身无关闭按钮（原依赖导航返回），此处补一个「关闭」以 modal 形式退出。
         submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -296,8 +311,7 @@ final class BugReporterRootViewController: UIViewController {
             target: self,
             action: #selector(dismissPresented)
         )
-        let nav = UINavigationController(rootViewController: submitHosting)
-        nav.modalPresentationStyle = .fullScreen
+        nav.viewControllers = [submitHosting]
         present(nav, animated: true, completion: nil)
         // 原应用截图仅注入一次，避免再次进入提 Bug 页时重复添加。
         sourceImages = []

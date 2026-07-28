@@ -18,14 +18,27 @@ public struct SubmitView: View {
     ///   - hostContext: 宿主在触发点（如 DoKit 长按）冻结的上下文快照（页面 / 路由 / 网络 /
     ///     操作轨迹 / 最近网络请求），由宿主侧采集器 `snapshot()` 产出。SDK 只消费、不采集。
     ///     传 `nil` 时回退到 `YXBConfigStore` 的实时注入值。默认 `nil`。
-    public init(sourceImages: [UIImage] = [], hostContext: YXBHostContext? = nil) {
+    ///   - onDismiss: 宿主提供的关闭回调。当 `SubmitView` 被包在 `UIHostingController`
+    ///     经 UIKit `present` 弹出时，SwiftUI 的 `@Environment(\.dismiss)` 无法收起该页面，
+    ///     需由宿主在回调里 `dismiss` 对应的 `UIViewController`。传 `nil` 时回退到 SwiftUI 自带
+    ///     `dismiss`（适用于 `.sheet` / `.fullScreenCover` 等 SwiftUI 托管场景）。默认 `nil`。
+    public init(
+        sourceImages: [UIImage] = [],
+        hostContext: YXBHostContext? = nil,
+        onDismiss: (@MainActor () -> Void)? = nil
+    ) {
         _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
         self.hostContext = hostContext
+        self.onDismiss = onDismiss
     }
 
     /// 宿主冻结的上下文快照；优先于 `YXBConfigStore` 的实时值，
     /// 以避免进入上报页后 SDK 自身请求污染「最近网络」。
     let hostContext: YXBHostContext?
+
+    /// 宿主提供的关闭回调（UIKit 弹出场景下收起 `UIHostingController` 用）；
+    /// 为 `nil` 时回退到 SwiftUI 自带 `dismiss`。
+    let onDismiss: (@MainActor () -> Void)?
 
     /// 标题的「补充描述」自由文本；完整标题由标签自动拼接（见 `composedTitle`）。
     @State private var titleExtra = ""
@@ -655,7 +668,11 @@ public struct SubmitView: View {
 
             // 提交成功后自动关闭提交页（先停留 1 秒让用户看到结果）。
             try? await Task.sleep(nanoseconds: 1_000_000_000)
-            dismiss()
+            if let onDismiss {
+                onDismiss()
+            } else {
+                dismiss()
+            }
         } catch {
             resultText = "提交失败：\(error.localizedDescription)"
             resultIsError = true
