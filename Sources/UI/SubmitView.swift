@@ -1,19 +1,36 @@
 import SwiftUI
 import PhotosUI
 
-/// Bug 提交页面：填写标题/描述、选择描述格式、附加截图（可选），点击提交。
+/// Bug 提交页面：选择快捷分类、描述现象（可语音）、附加标注截图，点击提交。
+///
+/// 交互遵循产品方案（AI 整理部分暂为 TODO）：
+/// 1. 自动采集环境信息（设备 / App / 截图数等，页面 / 网络 / 操作轨迹需宿主接入）；
+/// 2. 用户选择快捷分类（问题类型 / 严重程度 / 发生频率）；
+/// 3. 用户填写标题与现象描述（点击键盘麦克风可语音输入），可补充复现步骤 / 实际 / 期望；
+/// 4. 提交时组装为规范描述并附带分类标签，调用云效创建工作项 + 上传截图。
 public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
 
     /// - Parameter sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
-    ///   作为预置附件展示，用户可继续增删或框选标注。默认空。
+    ///   作为预置附件展示，用户可继续增删或框选 / 箭头标注。默认空。
     public init(sourceImages: [UIImage] = []) {
         _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
     }
 
     @State private var title = ""
-    @State private var description = ""
-    @State private var formatRaw = "TEXT"
+    // MARK: - 现象描述（可语音输入）
+    @State private var userDescription = ""
+    @State private var reproSteps = ""
+    @State private var actualResult = ""
+    @State private var expectedResult = ""
+    /// 描述格式：默认 Markdown，使组装的「## 标题」与环境信息列表渲染更清晰。
+    @State private var formatRaw = "MD"
+
+    // MARK: - 快捷分类（问题类型 / 严重程度 / 发生频率）
+    @State private var issueType: YXBIssueType?
+    @State private var severity: YXBSeverity?
+    @State private var frequency: YXBFrequency?
+
     @State private var images: [IdentifiedImage] = []
     @State private var isSubmitting = false
     @State private var resultText: String?
@@ -21,6 +38,10 @@ public struct SubmitView: View {
     @State private var showPicker = false
     /// 当前正在标注的图片（点开缩略图进入全屏标注器）。
     @State private var annotateTarget: AnnotateTarget?
+
+    /// 自动采集的上下文（onAppear 采集一次；展示时按当前截图数实时更新）。
+    @State private var context: YXBBugContext?
+    @State private var showContext = false
 
     // MARK: - 工作项类型字段（必填列表项）
     @State private var fieldDefinitions: [YXBFieldDefinition] = []
@@ -47,7 +68,6 @@ public struct SubmitView: View {
                     TextField("负责人用户 ID", text: $store.assignedTo)
                         .textInputAutocapitalization(.never)
                         .onChange(of: store.assignedTo) { _ in
-                            // 手动输入无法获知姓名，清空展示名并持久化。
                             store.assignedToName = ""
                             store.save()
                         }
@@ -57,7 +77,6 @@ public struct SubmitView: View {
                             .foregroundStyle(.orange)
                     }
                 } else {
-                    // 成员列表可用时，以「姓名」展示并可修改负责人（选中后以 ID 提交）。
                     Picker("负责人", selection: $store.assignedTo) {
                         ForEach(memberOptions) { member in
                             Text(member.name).tag(member.id)
@@ -65,7 +84,6 @@ public struct SubmitView: View {
                     }
                     .onChange(of: store.assignedTo) { newValue in
                         store.assignedToName = memberOptions.first(where: { $0.id == newValue })?.name ?? ""
-                        // 修改负责人后立即持久化，使配置页与下次启动保持一致。
                         store.save()
                     }
                     if !store.assignedToName.isEmpty {
@@ -75,7 +93,6 @@ public struct SubmitView: View {
                     }
                 }
 
-                // 成员列表已加载或上次加载失败时，提供「重新加载」入口。
                 if !memberOptions.isEmpty || memberLoadError != nil {
                     Button {
                         Task { await loadMembers() }
@@ -92,15 +109,68 @@ public struct SubmitView: View {
 
             requiredFieldsSection
 
-            Section("Bug 信息") {
-                TextField("标题", text: $title)
+            Section("问题分类（可选，用于标签与描述）") {
+                ChipGroup(title: "问题类型", options: YXBIssueType.allCases, display: { $0.displayName }, selection: $issueType)
+                ChipGroup(title: "严重程度", options: YXBSeverity.allCases, display: { $0.displayName }, selection: $severity)
+                ChipGroup(title: "发生频率", options: YXBFrequency.allCases, display: { $0.displayName }, selection: $frequency)
+            }
+
+            Section("Bug 描述") {
+                TextField("标题（必填）", text: $title)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("现象描述（点击键盘麦克风可语音输入）")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $userDescription)
+                        .frame(minHeight: 80)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.separator), lineWidth: 0.5)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("复现步骤（每行一步，可选）")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $reproSteps)
+                        .frame(minHeight: 80)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.separator), lineWidth: 0.5)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("实际结果（可选）")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $actualResult)
+                        .frame(minHeight: 56)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.separator), lineWidth: 0.5)
+                        )
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("期望结果（可选）")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    TextEditor(text: $expectedResult)
+                        .frame(minHeight: 56)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(.separator), lineWidth: 0.5)
+                        )
+                }
+
                 Picker("描述格式", selection: $formatRaw) {
-                    Text("纯文本").tag("TEXT")
                     Text("Markdown").tag("MD")
+                    Text("纯文本").tag("TEXT")
                 }
                 .pickerStyle(.segmented)
-                TextEditor(text: $description)
-                    .frame(minHeight: 120)
             }
 
             Section {
@@ -142,7 +212,20 @@ public struct SubmitView: View {
                     }
                     .padding(.vertical, 4)
                 }
-            } header: { Text("截图附件（可选）") }
+            } header: { Text("截图附件（可选，点开可标注红框 / 箭头）") }
+
+            Section {
+                let ctx = liveContext
+                DisclosureGroup("自动采集环境信息", isExpanded: $showContext) {
+                    ForEach(Array(ctx.descriptionLines.enumerated()), id: \.offset) { _, line in
+                        Text(line)
+                            .font(.footnote)
+                    }
+                    Text("页面 / 路由 / 网络 / 最近操作需宿主接入采集（TODO）。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
 
             Section {
                 Button {
@@ -183,17 +266,66 @@ public struct SubmitView: View {
             guard !isLoadingFields else { return }
             Task { await loadFields() }
             Task { await loadMembers() }
+            if context == nil {
+                context = YXBBugContextCollector.collect(screenshotCount: images.count)
+            }
         }
     }
 
-    /// 必填且为列表（单选/多选）的字段。
+    /// 实时上下文：以采集到的上下文为基础，按当前截图数更新。
+    private var liveContext: YXBBugContext {
+        var base = context ?? YXBBugContextCollector.collect(screenshotCount: images.count)
+        base.screenshotCount = images.count
+        return base
+    }
+
+    /// 组装提交描述：现象 / 复现步骤 / 实际 / 期望 + 环境信息。
+    private func buildDescription(context ctx: YXBBugContext) -> String {
+        var parts: [String] = []
+
+        let u = userDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !u.isEmpty { parts.append("## 问题描述\n\(u)") }
+
+        let steps = reproSteps
+            .split(separator: "\n")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        if !steps.isEmpty {
+            let numbered = steps
+                .enumerated()
+                .map { "\($0.offset + 1). \($0.element)" }
+                .joined(separator: "\n")
+            parts.append("## 复现步骤\n\(numbered)")
+        }
+
+        let actual = actualResult.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !actual.isEmpty { parts.append("## 实际结果\n\(actual)") }
+
+        let expected = expectedResult.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !expected.isEmpty { parts.append("## 期望结果\n\(expected)") }
+
+        parts.append("## 环境信息\n" + ctx.descriptionLines.joined(separator: "\n"))
+
+        return parts.joined(separator: "\n\n")
+    }
+
+    /// 由快捷分类生成上报标签。
+    private func buildLabels() -> [String] {
+        var labels: [String] = []
+        if let t = issueType { labels.append(t.label) }
+        if let s = severity { labels.append(s.label) }
+        if let f = frequency { labels.append(f.label) }
+        return labels
+    }
+
+    // MARK: - 必填列表字段
+
     private var requiredListFields: [YXBFieldDefinition] {
         fieldDefinitions.filter {
             $0.required && (["list", "multiList"].contains($0.format)) && !$0.options.isEmpty
         }
     }
 
-    /// 所有必填列表字段是否都已选择。
     private var requiredFieldsFilled: Bool {
         requiredListFields.allSatisfy {
             guard let value = customFieldValues[$0.id] else { return false }
@@ -243,7 +375,6 @@ public struct SubmitView: View {
 
     // MARK: - 成员列表（负责人）加载
 
-    /// 用「成员列表专用」配置构造 reporter：即使尚未选择负责人（assignedTo 为空）也能拉取成员。
     private func makeReporterForMembers() -> YunxiaoBugReporter? {
         do {
             let reporter = YunxiaoBugReporter()
@@ -254,7 +385,6 @@ public struct SubmitView: View {
         }
     }
 
-    /// 拉取当前项目的成员列表，用于「负责人」选择器按姓名展示与选择。
     private func loadMembers() async {
         isLoadingMembers = true
         memberLoadError = nil
@@ -269,7 +399,6 @@ public struct SubmitView: View {
             let members = try await reporter.listProjectMembers()
             await MainActor.run {
                 memberOptions = members
-                // 若当前已配置（含注入的默认负责人）的负责人命中成员列表，补上展示名。
                 if let current = members.first(where: { $0.id == store.assignedTo }) {
                     store.assignedToName = current.name
                 }
@@ -282,7 +411,6 @@ public struct SubmitView: View {
         }
     }
 
-    /// 拉取当前工作项类型的字段定义，并自动为必填列表字段填入默认值。
     private func loadFields() async {
         isLoadingFields = true
         fieldLoadError = nil
@@ -324,7 +452,6 @@ public struct SubmitView: View {
                   let defaultValue = field.defaultValue,
                   !defaultValue.isEmpty else { continue }
 
-            // 默认值通常是选项 id；若未命中，再尝试匹配 option.value（如 "3"）。
             if field.options.contains(where: { $0.id == defaultValue }) {
                 customFieldValues[field.id] = defaultValue
             } else if let matched = field.options.first(where: { $0.value == defaultValue }) {
@@ -333,12 +460,13 @@ public struct SubmitView: View {
         }
     }
 
+    // MARK: - 提交
+
     private func submit() async {
         isSubmitting = true
         resultText = nil
         defer { isSubmitting = false }
 
-        // 前置校验必填列表字段（避免服务端 400 后再提示）。
         guard requiredFieldsFilled else {
             let missing = requiredListFields
                 .filter { customFieldValues[$0.id]?.isEmpty ?? true }
@@ -349,12 +477,19 @@ public struct SubmitView: View {
             return
         }
 
-        // 负责人（指派给）在提交时校验：配置页可留空，此处明确提示，避免提交到服务端才 400。
         guard !store.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             resultText = "请选择负责人（指派给）后再提交。"
             resultIsError = true
             return
         }
+
+        let ctx = liveContext
+
+        // TODO: AI 结构化整理（接入 YXBBugAIFormatting 后在此调用）：
+        //   将 userDescription + ctx 送入 AI，生成标题建议 / 复现步骤 / 严重程度建议等；
+        //   AI 调用失败时必须回退到下方用户填写内容，不阻断提交。
+        let descriptionText = buildDescription(context: ctx)
+        let labels = buildLabels()
 
         do {
             let config = try store.buildConfiguration()
@@ -374,9 +509,10 @@ public struct SubmitView: View {
 
             let report = YXBBugReport(
                 title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-                description: description,
+                description: descriptionText,
                 format: formatRaw == "MD" ? .markdown : .plainText,
                 customFields: customFieldValues,
+                labels: labels,
                 attachments: attachments
             )
 
@@ -392,6 +528,41 @@ public struct SubmitView: View {
         } catch {
             resultText = "提交失败：\(error.localizedDescription)"
             resultIsError = true
+        }
+    }
+}
+
+/// 横向滚动的胶囊选择器，用于快捷分类。
+private struct ChipGroup<T: Identifiable & Hashable>: View {
+    let title: String
+    let options: [T]
+    let display: (T) -> String
+    @Binding var selection: T?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(options) { option in
+                        let isSelected = selection?.id == option.id
+                        Button {
+                            // 再次点击已选项可取消选择。
+                            selection = isSelected ? nil : option
+                        } label: {
+                            Text(display(option))
+                                .font(.system(size: 14, weight: .medium))
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(isSelected ? Color.accentColor : Color(.secondarySystemBackground))
+                                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                                .clipShape(Capsule())
+                        }
+                    }
+                }
+            }
         }
     }
 }
