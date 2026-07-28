@@ -6,7 +6,7 @@ import PhotosUI
 /// 交互遵循产品方案（AI 整理部分暂为 TODO）：
 /// 1. 自动采集环境信息（设备 / App / 截图数等由 SDK 采集；页面 / 路由 / 网络 / 操作轨迹 / 最近网络请求由宿主通过 `YXBHostContext` 快照注入）；
 /// 2. 用户选择快捷分类（问题类型 / 严重程度 / 发生频率）；
-/// 3. 用户填写标题与现象描述（点击键盘麦克风可语音输入），可补充复现步骤 / 实际 / 期望；
+/// 3. 用户输入一句现象描述（点击键盘麦克风可语音输入），可用 AI 整理为同一可编辑草稿；
 /// 4. 提交时组装为规范描述并附带分类标签，调用云效创建工作项 + 上传截图。
 public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
@@ -40,13 +40,13 @@ public struct SubmitView: View {
     /// 为 `nil` 时回退到 SwiftUI 自带 `dismiss`。
     let onDismiss: (@MainActor () -> Void)?
 
-    /// 标题的「补充描述」自由文本；完整标题由标签自动拼接（见 `composedTitle`）。
-    @State private var titleExtra = ""
-    // MARK: - 现象描述（可语音输入）
+    /// AI 生成的标题建议；完整标题会叠加当前分类标签（见 `composedTitle`）。
+    @State private var generatedTitle = ""
+    // MARK: - 单一 Bug 描述输入（AI 整理后复用为可编辑的规范草稿）
     @State private var userDescription = ""
-    @State private var reproSteps = ""
-    @State private var actualResult = ""
-    @State private var expectedResult = ""
+    @State private var isFormattingWithAI = false
+    @State private var aiFormattingMessage: String?
+    @State private var aiFormattingFailed = false
     /// 描述格式：默认 Markdown，使组装的「## 标题」与环境信息列表渲染更清晰。
     @State private var formatRaw = "MD"
 
@@ -143,62 +143,55 @@ public struct SubmitView: View {
                 ChipGroup(title: "发生频率", options: YXBFrequency.allCases, display: { $0.displayName }, selection: $frequency)
             }
 
-            Section("Bug 标题（自动拼接分类标签）") {
-                Text(composedTitle)
-                    .font(.subheadline)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(.secondarySystemBackground)))
-                TextField("补充描述（可选）", text: $titleExtra)
-            }
-
             Section("Bug 描述") {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("现象描述（点击键盘麦克风可语音输入）")
+                    Text(generatedTitle.isEmpty ? "用一句话描述现象（点击键盘麦克风可语音输入）" : "AI 整理内容（可直接修改）")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                     TextEditor(text: $userDescription)
-                        .frame(minHeight: 80)
+                        .frame(minHeight: generatedTitle.isEmpty ? 120 : 240)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(Color(.separator), lineWidth: 0.5)
                         )
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("复现步骤（每行一步，可选）")
+                if store.aiServiceDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("未配置 Bug AI 服务，仍可手动填写。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
-                    TextEditor(text: $reproSteps)
-                        .frame(minHeight: 80)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.separator), lineWidth: 0.5)
-                        )
+                } else {
+                    Button {
+                        Task { await formatWithAI() }
+                    } label: {
+                        if isFormattingWithAI {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("AI 整理中…")
+                            }
+                        } else {
+                            Label("AI 整理并回填", systemImage: "sparkles")
+                        }
+                    }
+                    .disabled(isFormattingWithAI || userDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .accessibilityHint("根据现象描述和已脱敏上下文，回填 Bug 标题、复现步骤和结果")
+
+                    if let message = aiFormattingMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(aiFormattingFailed ? .red : .secondary)
+                    }
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("实际结果（可选）")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $actualResult)
-                        .frame(minHeight: 56)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.separator), lineWidth: 0.5)
-                        )
-                }
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("期望结果（可选）")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $expectedResult)
-                        .frame(minHeight: 56)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.separator), lineWidth: 0.5)
-                        )
+                if !generatedTitle.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("提交标题（自动生成）")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        Text(composedTitle)
+                            .font(.subheadline)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
 
                 Picker("描述格式", selection: $formatRaw) {
@@ -262,7 +255,7 @@ public struct SubmitView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         ForEach(ctx.recentRequests.prefix(8)) { crumb in
-                            Text(networkBreadcrumbLine(crumb))
+                            Text(YXBDescriptionComposer.networkSummary(crumb, prefix: ""))
                                 .font(.footnote)
                         }
                     }
@@ -338,14 +331,21 @@ public struct SubmitView: View {
         return ctx
     }
 
-    /// 自动拼接的标题：`【iOS】` + `【问题类型】` + `【严重程度】` + `【发生频率】` + 补充描述。
+    /// 自动拼接的标题：`【iOS】` + 分类标签 + AI 标题（AI 未启用时回退首行描述）。
     private var composedTitle: String {
         var parts: [String] = ["【iOS】"]
         if let t = issueType { parts.append("【\(t.displayName)】") }
         if let s = severity { parts.append("【\(s.displayName)】") }
         if let f = frequency { parts.append("【\(f.displayName)】") }
-        let extra = titleExtra.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !extra.isEmpty { parts.append(extra) }
+        let title = generatedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !title.isEmpty {
+            parts.append(title)
+        } else if let firstLine = userDescription
+            .split(separator: "\n")
+            .map({ $0.trimmingCharacters(in: .whitespaces) })
+            .first(where: { !$0.isEmpty }) {
+            parts.append(String(firstLine.prefix(80)))
+        }
         return parts.joined()
     }
 
@@ -358,81 +358,108 @@ public struct SubmitView: View {
         }
     }
 
-    /// 组装提交描述：现象 / 复现步骤 / 实际 / 期望 + 环境信息。
+    /// 单一描述输入框的内容原样提交，并追加环境信息。
     private func buildDescription(context ctx: YXBBugContext) -> String {
-        var parts: [String] = []
+        YXBDescriptionComposer.compose(body: userDescription, context: ctx)
+    }
 
-        let u = userDescription.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !u.isEmpty { parts.append("## 问题描述\n\(u)") }
+    // MARK: - AI 整理
 
-        let steps = reproSteps
-            .split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        if !steps.isEmpty {
-            let numbered = steps
+    @MainActor
+    private func formatWithAI() async {
+        let description = userDescription.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !description.isEmpty else { return }
+
+        let serviceDomain = store.aiServiceDomain
+        let context = liveContext
+        isFormattingWithAI = true
+        aiFormattingMessage = nil
+        defer { isFormattingWithAI = false }
+
+        do {
+            let formatter = try YXBRemoteBugAIFormatter(serviceDomain: serviceDomain)
+            let report = try await formatter.generate(
+                YXBBugAIGenerateRequest(
+                    description: description,
+                    issueType: issueType?.rawValue,
+                    severity: severity?.rawValue,
+                    frequency: aiFrequencyValue(frequency),
+                    page: .init(name: context.page, route: context.route),
+                    recentActions: Array(context.recentActions.prefix(50)),
+                    environment: .init(
+                        appVersion: context.appVersion,
+                        build: context.build,
+                        device: context.deviceModel,
+                        osVersion: context.osVersion,
+                        network: context.network
+                    )
+                )
+            )
+            applyAIReport(report)
+            aiFormattingMessage = report.missingInformation.isEmpty
+                ? "AI 建议已回填，你仍可继续编辑后再提交。"
+                : "AI 建议已回填；建议补充：\(report.missingInformation.joined(separator: "、"))"
+            aiFormattingFailed = false
+        } catch {
+            // AI 是辅助能力：失败仅提示，绝不清空或阻断人工填写与云效提交。
+            aiFormattingMessage = "AI 整理失败：\(error.localizedDescription)"
+            aiFormattingFailed = true
+        }
+    }
+
+    private func applyAIReport(_ report: YXBBugAIGeneratedReport) {
+        generatedTitle = report.title
+        userDescription = formattedAIContent(report)
+        issueType = YXBIssueType(rawValue: report.issueType ?? "")
+        if let suggestedSeverity = YXBSeverity(rawValue: report.severity) {
+            severity = suggestedSeverity
+            applyAISeverityToCustomField(suggestedSeverity)
+        } else {
+            severity = nil
+            if let field = severityField {
+                customFieldValues[field.id] = nil
+            }
+        }
+        switch report.frequency {
+        case "always": frequency = .always
+        case "often", "occasionally": frequency = .sometimes
+        case "once": frequency = .first
+        default: frequency = nil
+        }
+    }
+
+    private func formattedAIContent(_ report: YXBBugAIGeneratedReport) -> String {
+        var sections = ["## 问题描述\n\(report.actualResult)"]
+        if !report.reproductionSteps.isEmpty {
+            let numberedSteps = report.reproductionSteps
                 .enumerated()
                 .map { "\($0.offset + 1). \($0.element)" }
                 .joined(separator: "\n")
-            parts.append("## 复现步骤\n\(numbered)")
+            sections.append("## 复现步骤\n\(numberedSteps)")
         }
-
-        let actual = actualResult.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !actual.isEmpty { parts.append("## 实际结果\n\(actual)") }
-
-        let expected = expectedResult.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !expected.isEmpty { parts.append("## 期望结果\n\(expected)") }
-
-        parts.append("## 环境信息\n" + ctx.descriptionLines.joined(separator: "\n"))
-
-        // 最近网络请求：保留完整请求 / 响应，认证信息由宿主在注入前脱敏。
-        if !ctx.recentRequests.isEmpty {
-            parts.append(
-                "## 最近网络请求\n" +
-                ctx.recentRequests.map(networkBreadcrumbDetail).joined(separator: "\n\n---\n\n")
-            )
+        if let expected = report.expectedResult, !expected.isEmpty {
+            let inferred = report.expectedResultInferred ? "（AI 推断）" : ""
+            sections.append("## 期望结果\(inferred)\n\(expected)")
         }
-
-        return parts.joined(separator: "\n\n")
+        return sections.joined(separator: "\n\n")
     }
 
-    /// 单条网络请求面包屑的预览文本。
-    private func networkBreadcrumbLine(_ crumb: YXBNetworkBreadcrumb) -> String {
-        var s = "\(crumb.method) \(crumb.path)"
-        if let code = crumb.statusCode { s += " · \(code)" }
-        s += " · \(crumb.durationMs)ms"
-        if let err = crumb.error, !err.isEmpty { s += " · 错误：\(err)" }
-        return s
+    private func aiFrequencyValue(_ value: YXBFrequency?) -> String? {
+        switch value {
+        case .always: return "always"
+        case .sometimes: return "occasionally"
+        case .first: return "once"
+        case nil: return nil
+        }
     }
 
-    private func networkBreadcrumbDetail(_ crumb: YXBNetworkBreadcrumb) -> String {
-        var summary = [
-            "**\(crumb.method) \(crumb.path)**  ·  \(crumb.statusCode.map(String.init) ?? "无")  ·  \(crumb.durationMs)ms"
-        ]
-        if let error = crumb.error, !error.isEmpty {
-            summary.append("错误：\(error)")
-        }
-        if !crumb.requestHeaders.isEmpty {
-            summary.append("请求 Header：\(headerText(crumb.requestHeaders))")
-        }
-        var bodySections = [summary.joined(separator: "；")]
-        if let body = crumb.requestBody, !body.isEmpty {
-            bodySections.append("请求体\n```text\n\(body)\n```")
-        }
-        if !crumb.responseHeaders.isEmpty {
-            bodySections[0] += "；响应 Header：\(headerText(crumb.responseHeaders))"
-        }
-        if let body = crumb.responseBody, !body.isEmpty {
-            bodySections.append("响应体\n```text\n\(body)\n```")
-        }
-        return bodySections.joined(separator: "\n")
-    }
-
-    private func headerText(_ headers: [String: String]) -> String {
-        headers
-            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
-            .map { "\($0.key): \($0.value)" }
-            .joined(separator: "；")
+    private func applyAISeverityToCustomField(_ suggestedSeverity: YXBSeverity) {
+        guard let field = severityField,
+              let option = field.options.first(where: {
+                  $0.value.lowercased() == suggestedSeverity.rawValue
+                      || $0.displayValue == suggestedSeverity.displayName
+              }) else { return }
+        customFieldValues[field.id] = option.id
     }
 
     /// 由快捷分类生成上报标签。

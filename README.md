@@ -103,7 +103,20 @@ do {
 
 `tokenProvider` 是一个 `@Sendable () async throws -> String` 闭包，SDK 不会保存 Token。
 
-### 3.1 结果缓存（可选）
+### 3.1 AI 整理（可选）
+
+SDK 不持有模型密钥；由宿主注入 Bug AI 服务根域名。配置后，提交页会显示“AI 整理并回填”按钮，调用 `/api/v1/bug-report/generate` 并回填标题、复现步骤、实际/期望结果和可识别的分类。AI 请求不发送截图、最近网络请求或云效 Token；请求失败不会影响手动填写和云效提交。
+
+```swift
+let store = YXBConfigStore(
+    domain: "https://your-yunxiao-domain.com",
+    aiServiceDomain: "https://bug-ai.example.com",
+    organizationID: "your-organization-id",
+    defaultToken: "..."
+)
+```
+
+### 3.2 结果缓存（可选）
 
 默认**不缓存**。配置 `YXBConfiguration.cache` 后，SDK 会缓存两类派生结果，以减少对云效 API 与 `tokenProvider` 的重复调用：
 

@@ -24,6 +24,9 @@ public final class YXBConfigStore: ObservableObject {
     /// 宿主注入的云效服务域名（如 `https://openapi-rdc.aliyuncs.com`）。
     /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
     public var domain: String = ""
+    /// 宿主注入的 Bug AI 服务根域名（如 `https://bug-ai.example.com`）。
+    /// 留空时提交页不展示 AI 整理功能；该值不持久化，避免将环境地址写入用户偏好。
+    public var aiServiceDomain: String = ""
     /// 宿主注入的组织 ID（中心版必填）。
     /// 可在初始化时传入，也可在初始化后于代码中直接赋值（默认空字符串）。
     public var organizationID: String = ""
@@ -89,6 +92,7 @@ public final class YXBConfigStore: ObservableObject {
 
     public init(
         domain: String = "",
+        aiServiceDomain: String = "",
         organizationID: String = "",
         defaultToken: String = "",
         defaultAssignedTo: String = "",
@@ -96,6 +100,7 @@ public final class YXBConfigStore: ObservableObject {
         defaultsKey: String = "com.yunxiao.bugreporter.config.v1"
     ) {
         self.domain = domain
+        self.aiServiceDomain = aiServiceDomain
         self.organizationID = organizationID
         self.defaultToken = defaultToken
         self.defaultAssignedTo = defaultAssignedTo
