@@ -259,7 +259,7 @@ struct ImageAnnotatorView: View {
 
     /// 归一化点 → 容器内坐标点（scaledToFit）。
     private static func normalizedToPoint(_ norm: CGPoint, container: CGSize, imageSize: CGSize) -> CGPoint {
-        let content = contentRect(container: container, imageSize: imageSize)
+        let content = contentRect(container: container, image: imageSize)
         return CGPoint(
             x: content.origin.x + norm.x * content.width,
             y: content.origin.y + norm.y * content.height
