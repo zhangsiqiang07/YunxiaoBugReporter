@@ -1,14 +1,15 @@
 import Foundation
 import UIKit
 
-/// 一次 Bug 上报自动采集的上下文（设备 / App / 页面 / 网络 / 操作轨迹等）。
+/// 一次 Bug 上报的上下文（设备 / App / 页面 / 网络 / 操作轨迹 / 最近网络请求等）。
 ///
-/// 设计原则（见产品方案）：
-/// - 设备型号、系统版本、App 版本、Build 等可在 SDK 内直接获取，立即填充；
-/// - 当前页面、路由、网络类型、最近操作轨迹等**需要宿主接入埋点**，当前为 `nil` / 占位，
-///   由宿主通过 `YXBBugContextCollector` 之外的接入点补充（TODO）；
-/// - 敏感字段（如用户 ID、Authorization、Cookie、手机号、完整请求体）不应进入上下文，
-///   由宿主在埋点侧自行脱敏。
+/// 设计原则：**宿主采集、Pod 只消费快照**。
+/// - 设备型号、系统版本、App 版本、Build 等可在 SDK 内直接获取，由 `YXBBugContextCollector` 自动填充；
+/// - 当前页面、路由、网络类型、最近操作轨迹、最近网络请求等**需宿主埋点采集**，
+///   由宿主在触发点（如 DoKit 长按）调用 `snapshot()` 冻结为 `YXBHostContext`，
+///   再传给 `SubmitView(hostContext:)`；**SDK 不依赖宿主的埋点 / 网络层**；
+/// - 敏感字段（用户 ID、Authorization、Cookie、手机号、完整 query、请求 / 响应 body）不进入上下文，
+///   由宿主在采集侧脱敏（见 `YXBNetworkBreadcrumb` 的隐私红线）。
 public struct YXBBugContext {
     public var appVersion: String?
     public var build: String?
@@ -26,8 +27,11 @@ public struct YXBBugContext {
     public var screenshotCount: Int
     /// 采集时间戳。
     public var timestamp: Date
-    /// 最近操作轨迹（文本摘要）；需宿主接入操作埋点（TODO）。
+    /// 最近操作轨迹（文本摘要）；由宿主采集后通过 `YXBHostContext` 快照注入。
     public var recentActions: [String]
+    /// 最近网络请求面包屑（已脱敏，仅含 method / 脱敏 path / statusCode / 耗时 / 错误）；
+    /// SDK 自身不采集网络，需宿主在统一网络层记录并通过 `YXBHostContext` 快照注入。
+    public var recentRequests: [YXBNetworkBreadcrumb]
 
     public init(
         appVersion: String? = nil,
@@ -39,7 +43,8 @@ public struct YXBBugContext {
         network: String? = nil,
         screenshotCount: Int = 0,
         timestamp: Date = Date(),
-        recentActions: [String] = []
+        recentActions: [String] = [],
+        recentRequests: [YXBNetworkBreadcrumb] = []
     ) {
         self.appVersion = appVersion
         self.build = build
@@ -51,6 +56,7 @@ public struct YXBBugContext {
         self.screenshotCount = screenshotCount
         self.timestamp = timestamp
         self.recentActions = recentActions
+        self.recentRequests = recentRequests
     }
 
     /// 用于「描述」字段的环境信息行（Markdown 列表）。
@@ -85,18 +91,20 @@ public struct YXBBugContext {
     }
 }
 
-/// 上下文采集器：收集可在 SDK 内直接获取的设备和 App 信息。
+/// 上下文采集器：收集可在 SDK 内直接获取的设备与 App 信息。
 ///
-/// 页面 / 路由 / 网络 / 最近操作等需要宿主埋点，调用方应传入已采集的结果，
-/// 或通过宿主侧埋点接口补充后再构造 `YXBBugContext`。
+/// 页面 / 路由 / 网络 / 最近操作 / 最近网络请求等需宿主埋点，由宿主冻结为
+/// `YXBHostContext` 快照后通过 `SubmitView(hostContext:)` 注入；本采集器仅负责设备 / App 维度。
 public enum YXBBugContextCollector {
     /// 采集设备与 App 维度信息；其他维度由参数注入（宿主埋点），未提供则为占位。
+    /// 注意：`recentRequests` 始终由宿主注入（SDK 不采集网络），此处仅透传、默认空。
     public static func collect(
         screenshotCount: Int,
         page: String? = nil,
         route: String? = nil,
         network: String? = nil,
-        recentActions: [String] = []
+        recentActions: [String] = [],
+        recentRequests: [YXBNetworkBreadcrumb] = []
     ) -> YXBBugContext {
         let bundle = Bundle.main.infoDictionary
         let appVersion = bundle?["CFBundleShortVersionString"] as? String
@@ -113,7 +121,8 @@ public enum YXBBugContextCollector {
             network: network,
             screenshotCount: screenshotCount,
             timestamp: Date(),
-            recentActions: recentActions
+            recentActions: recentActions,
+            recentRequests: recentRequests
         )
     }
 
@@ -129,5 +138,84 @@ public enum YXBBugContextCollector {
             }
         }
         return identifier.isEmpty ? UIDevice.current.model : identifier
+    }
+}
+
+/// 单条网络请求「面包屑」：随 Bug 上报附带的最近网络轨迹。
+///
+/// **隐私红线（宿主侧必须遵守）**：仅记录脱敏后的 `path`（如 `/api/pet/detail`），
+/// 禁止采集 / 上传以下任何内容：
+/// - `Authorization` / `Cookie` 等鉴权头；
+/// - 手机号、邮箱、身份证等个人身份信息；
+/// - 完整 query（仅保留 path，参数一律丢弃）或请求 / 响应 body；
+/// - 任何可能反推出用户身份或业务敏感数据的字段。
+///
+/// 耗时（`durationMs`）与 `statusCode` 可帮助定位超时 / 5xx，属安全范围。
+public struct YXBNetworkBreadcrumb: Identifiable, Hashable, Sendable {
+    public let id: UUID
+    /// HTTP 方法，如 `GET` / `POST`。
+    public let method: String
+    /// 脱敏后的路径（不含 query、不含 host 明文敏感信息）。
+    public let path: String
+    /// 响应状态码；请求失败（如超时、无网络）时为 `nil`。
+    public let statusCode: Int?
+    /// 耗时（毫秒）。
+    public let durationMs: Int
+    /// 错误摘要（如 `timeout` / `noNetwork` / `decodingFailed`）；无错误为 `nil`。
+    public let error: String?
+    /// 请求发生时间。
+    public let timestamp: Date
+
+    public init(
+        id: UUID = UUID(),
+        method: String,
+        path: String,
+        statusCode: Int?,
+        durationMs: Int,
+        error: String?,
+        timestamp: Date = Date()
+    ) {
+        self.id = id
+        self.method = method
+        self.path = path
+        self.statusCode = statusCode
+        self.durationMs = durationMs
+        self.error = error
+        self.timestamp = timestamp
+    }
+}
+
+/// 宿主在触发点（如 DoKit 长按）一次性冻结的上下文快照；SDK 只消费、不采集。
+///
+/// 设计原则：**宿主采集、Pod 只消费快照**。
+/// - 设备 / App 维度由 SDK 在 `onAppear` 自行采集（`YXBBugContextCollector`）；
+/// - 页面 / 路由 / 网络 / 操作轨迹 / 最近网络请求等需宿主埋点，由宿主调用 `snapshot()`
+///   冻结为 `YXBHostContext`，再传给 `SubmitView(hostContext:)`。
+///   这样可避免进入上报页后 SDK 自身的网络请求污染「最近网络」；
+/// - SDK 不依赖宿主的埋点框架或网络层；双方仅通过本结构体契约解耦。
+public struct YXBHostContext: Sendable {
+    /// 当前页面标识（如 `PetDetailViewController`）。
+    public let page: String?
+    /// 当前路由（脱敏后的形式，如 `pet/detail`）。
+    public let route: String?
+    /// 网络类型（`Wi-Fi` / `蜂窝` / `无网络`）。
+    public let network: String?
+    /// 最近操作轨迹（文本摘要），保留最近若干条。
+    public let recentActions: [String]
+    /// 最近网络请求面包屑（已脱敏），保留最近若干条。
+    public let recentRequests: [YXBNetworkBreadcrumb]
+
+    public init(
+        page: String?,
+        route: String?,
+        network: String?,
+        recentActions: [String],
+        recentRequests: [YXBNetworkBreadcrumb]
+    ) {
+        self.page = page
+        self.route = route
+        self.network = network
+        self.recentActions = recentActions
+        self.recentRequests = recentRequests
     }
 }

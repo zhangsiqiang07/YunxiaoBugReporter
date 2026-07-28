@@ -86,11 +86,14 @@ final class ExampleRootViewController: UIViewController {
         title = "示例宿主"
         view.backgroundColor = .systemBackground
 
-        // 演示：宿主向 SDK 注入「自动环境信息」（真实接入时由页面/路由/网络埋点提供）。
-        store.currentPage = "ExampleRootViewController"
-        store.currentRoute = "example/home"
-        store.currentNetwork = "Wi-Fi"
-        store.track(action: "进入示例宿主首页")
+        // 演示：宿主侧采集「自动环境信息」，通过 ZJBugEvidenceCollector 冻结为快照后注入 SDK。
+        // 真实接入时由页面 / 路由 / 网络埋点提供，与 SDK 解耦（SDK 不依赖这些埋点）。
+        let collector = ZJBugEvidenceCollector.shared
+        collector.enter(page: "ExampleRootViewController", route: "example/home")
+        collector.track(action: "进入示例宿主首页")
+        // 演示预置两条「最近网络请求」面包屑（真实接入时由统一网络层记录，此处仅为让区块可见）。
+        collector.recordRequest(method: "GET", path: "/api/feed/recommend", statusCode: 200, durationMs: 320, error: nil)
+        collector.recordRequest(method: "POST", path: "/api/order/create", statusCode: 500, durationMs: 1200, error: "serverError")
 
         setupButtons()
     }
@@ -114,28 +117,28 @@ final class ExampleRootViewController: UIViewController {
 
     /// 直接进入 SDK 的「提交 Bug」页面。
     @objc private func openReporter() {
-        store.track(action: "点击「打开 Bug 上报」")
-        presentSubmit(sourceImages: [])
+        ZJBugEvidenceCollector.shared.track(action: "点击「打开 Bug 上报」")
+        presentSubmit(sourceImages: [], hostContext: ZJBugEvidenceCollector.shared.snapshot())
     }
 
     /// 截取宿主窗口（模拟「原应用」产生的截图），直接带入「提交 Bug」页面作为预置附件。
     @objc private func openWithScreenshot() {
-        store.track(action: "点击「带原应用截图打开」")
+        ZJBugEvidenceCollector.shared.track(action: "点击「带原应用截图打开」")
         guard let window = view.window else {
-            presentSubmit(sourceImages: [])
+            presentSubmit(sourceImages: [], hostContext: ZJBugEvidenceCollector.shared.snapshot())
             return
         }
         let bounds = window.bounds
         let screenshot = UIGraphicsImageRenderer(size: bounds.size).image { _ in
             window.drawHierarchy(in: bounds, afterScreenUpdates: false)
         }
-        presentSubmit(sourceImages: [screenshot])
+        presentSubmit(sourceImages: [screenshot], hostContext: ZJBugEvidenceCollector.shared.snapshot())
     }
 
     /// 以全屏 modal 直接进入「提交 Bug」页面，并附带「关闭」按钮退出。
-    private func presentSubmit(sourceImages: [UIImage]) {
+    private func presentSubmit(sourceImages: [UIImage], hostContext: YXBHostContext?) {
         let submitHosting = UIHostingController(
-            rootView: SubmitView(sourceImages: sourceImages)
+            rootView: SubmitView(sourceImages: sourceImages, hostContext: hostContext)
                 .navigationViewStyle(.stack)
                 .environmentObject(store)
         )
@@ -152,7 +155,7 @@ final class ExampleRootViewController: UIViewController {
 
     /// 打开完整界面（Bug 列表 / 云效配置 TabBar），便于配置与查看历史。
     @objc private func openFull() {
-        store.track(action: "点击「打开完整界面」")
+        ZJBugEvidenceCollector.shared.track(action: "点击「打开完整界面」")
         let reporter = BugReporterRootViewController(store: store)
         reporter.modalPresentationStyle = .fullScreen
         present(reporter, animated: true, completion: nil)
@@ -281,8 +284,10 @@ final class BugReporterRootViewController: UIViewController {
     // MARK: - 交互
 
     @objc private func addBugTapped() {
+        // 在点击「添加Bug」这一触发点冻结宿主证据快照，传给提交页。
+        let hostContext = ZJBugEvidenceCollector.shared.snapshot()
         let submitHosting = UIHostingController(
-            rootView: SubmitView(sourceImages: sourceImages).environmentObject(store)
+            rootView: SubmitView(sourceImages: sourceImages, hostContext: hostContext).environmentObject(store)
         )
         // SubmitView 自身无关闭按钮（原依赖导航返回），此处补一个「关闭」以 modal 形式退出。
         submitHosting.navigationItem.rightBarButtonItem = UIBarButtonItem(

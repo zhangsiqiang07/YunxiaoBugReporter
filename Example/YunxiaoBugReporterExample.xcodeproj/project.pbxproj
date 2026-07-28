@@ -11,6 +11,7 @@
 		69EA8D11E20671FB9604F57F /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0D984B6E119A63CEEF5B3A66 /* Foundation.framework */; };
 		C626ED5F0DE1C367B8AADB26 /* Pods_YunxiaoBugReporterExample.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 473D2A7FF4E531390BC5A8FE /* Pods_YunxiaoBugReporterExample.framework */; };
 		A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF208824BC144D1EF87E2416 /* DemoConstants.swift */; };
+		434506DD7E0E5C350A081782 /* ZJBugEvidenceCollector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D147D170966B477F98FE8CC /* ZJBugEvidenceCollector.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -21,6 +22,7 @@
 		5DBA17D3E1D8D2DDDCED8E89 /* YunxiaoBugReporterExample.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YunxiaoBugReporterExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FB5A692A1C654634DA09884 /* AppDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		FF208824BC144D1EF87E2416 /* DemoConstants.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DemoConstants.swift; sourceTree = "<group>"; };
+		7D147D170966B477F98FE8CC /* ZJBugEvidenceCollector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ZJBugEvidenceCollector.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -67,7 +69,8 @@
 			isa = PBXGroup;
 			children = (
 				7FB5A692A1C654634DA09884 /* AppDelegate.swift */,
-			FF208824BC144D1EF87E2416 /* DemoConstants.swift */
+			FF208824BC144D1EF87E2416 /* DemoConstants.swift */,
+				7D147D170966B477F98FE8CC /* ZJBugEvidenceCollector.swift */
 			);
 			name = YunxiaoBugReporterExample;
 			path = YunxiaoBugReporterExample;
@@ -201,7 +204,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				08376388D166C4646ADFF522 /* AppDelegate.swift in Sources */,
-			A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */
+			A80ACCF3A42A15C5637BFFE9 /* DemoConstants.swift in Sources */,
+				434506DD7E0E5C350A081782 /* ZJBugEvidenceCollector.swift in Sources */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

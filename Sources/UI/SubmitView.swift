@@ -4,18 +4,27 @@ import PhotosUI
 /// Bug 提交页面：选择快捷分类、描述现象（可语音）、附加标注截图，点击提交。
 ///
 /// 交互遵循产品方案（AI 整理部分暂为 TODO）：
-/// 1. 自动采集环境信息（设备 / App / 截图数等，页面 / 网络 / 操作轨迹需宿主接入）；
+/// 1. 自动采集环境信息（设备 / App / 截图数等由 SDK 采集；页面 / 路由 / 网络 / 操作轨迹 / 最近网络请求由宿主通过 `YXBHostContext` 快照注入）；
 /// 2. 用户选择快捷分类（问题类型 / 严重程度 / 发生频率）；
 /// 3. 用户填写标题与现象描述（点击键盘麦克风可语音输入），可补充复现步骤 / 实际 / 期望；
 /// 4. 提交时组装为规范描述并附带分类标签，调用云效创建工作项 + 上传截图。
 public struct SubmitView: View {
     @EnvironmentObject private var store: YXBConfigStore
 
-    /// - Parameter sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
-    ///   作为预置附件展示，用户可继续增删或框选 / 箭头标注。默认空。
-    public init(sourceImages: [UIImage] = []) {
+    /// - Parameters:
+    ///   - sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
+    ///     作为预置附件展示，用户可继续增删或框选 / 箭头标注。默认空。
+    ///   - hostContext: 宿主在触发点（如 DoKit 长按）冻结的上下文快照（页面 / 路由 / 网络 /
+    ///     操作轨迹 / 最近网络请求），由宿主侧采集器 `snapshot()` 产出。SDK 只消费、不采集。
+    ///     传 `nil` 时回退到 `YXBConfigStore` 的实时注入值。默认 `nil`。
+    public init(sourceImages: [UIImage] = [], hostContext: YXBHostContext? = nil) {
         _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
+        self.hostContext = hostContext
     }
+
+    /// 宿主冻结的上下文快照；优先于 `YXBConfigStore` 的实时值，
+    /// 以避免进入上报页后 SDK 自身请求污染「最近网络」。
+    let hostContext: YXBHostContext?
 
     /// 标题的「补充描述」自由文本；完整标题由标签自动拼接（见 `composedTitle`）。
     @State private var titleExtra = ""
@@ -233,7 +242,17 @@ public struct SubmitView: View {
                         Text(line)
                             .font(.footnote)
                     }
-                    Text("页面 / 路由 / 网络 / 最近操作需宿主接入采集（TODO）。")
+                    if !ctx.recentRequests.isEmpty {
+                        Divider()
+                        Text("最近网络请求（\(ctx.recentRequests.count) 条，已脱敏）")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                        ForEach(ctx.recentRequests.prefix(8)) { crumb in
+                            Text(networkBreadcrumbLine(crumb))
+                                .font(.footnote)
+                        }
+                    }
+                    Text("设备 / App 由 SDK 采集；页面 / 路由 / 网络 / 操作 / 最近请求由宿主通过 YXBHostContext 注入。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -284,8 +303,8 @@ public struct SubmitView: View {
         }
     }
 
-    /// 实时上下文：以采集到的设备/App 信息为基础，叠加宿主通过 `YXBConfigStore` 注入的
-    /// 页面 / 路由 / 网络 / 操作轨迹。
+    /// 实时上下文：以采集到的设备/App 信息为基础，先叠加 `YXBConfigStore` 的实时值，
+    /// 再叠加宿主冻结的 `hostContext` 快照（快照优先，避免上报页内 SDK 自身请求污染）。
     private var liveContext: YXBBugContext {
         var ctx = baseContext ?? YXBBugContextCollector.collect(screenshotCount: images.count)
         ctx.screenshotCount = images.count
@@ -293,6 +312,15 @@ public struct SubmitView: View {
         if let route = store.currentRoute, !route.isEmpty { ctx.route = route }
         if let network = store.currentNetwork, !network.isEmpty { ctx.network = network }
         if !store.recentActions.isEmpty { ctx.recentActions = store.recentActions }
+
+        // 宿主冻结快照（推荐）：在长按时一次性采集，优先级高于上面的实时值。
+        if let h = hostContext {
+            if let page = h.page, !page.isEmpty { ctx.page = page }
+            if let route = h.route, !route.isEmpty { ctx.route = route }
+            if let network = h.network, !network.isEmpty { ctx.network = network }
+            if !h.recentActions.isEmpty { ctx.recentActions = h.recentActions }
+            if !h.recentRequests.isEmpty { ctx.recentRequests = h.recentRequests }
+        }
         return ctx
     }
 
@@ -343,7 +371,28 @@ public struct SubmitView: View {
 
         parts.append("## 环境信息\n" + ctx.descriptionLines.joined(separator: "\n"))
 
+        // 最近网络请求（已脱敏）：仅 method / 脱敏 path / 状态码 / 耗时 / 错误。
+        if !ctx.recentRequests.isEmpty {
+            let lines = ctx.recentRequests.map { crumb -> String in
+                var s = "\(crumb.method) \(crumb.path)"
+                if let code = crumb.statusCode { s += " · \(code)" }
+                s += " · \(crumb.durationMs)ms"
+                if let err = crumb.error, !err.isEmpty { s += " · 错误：\(err)" }
+                return "- \(s)"
+            }
+            parts.append("## 最近网络请求\n" + lines.joined(separator: "\n"))
+        }
+
         return parts.joined(separator: "\n\n")
+    }
+
+    /// 单条网络请求面包屑的预览文本（脱敏，仅 method/path/状态码/耗时/错误）。
+    private func networkBreadcrumbLine(_ crumb: YXBNetworkBreadcrumb) -> String {
+        var s = "\(crumb.method) \(crumb.path)"
+        if let code = crumb.statusCode { s += " · \(code)" }
+        s += " · \(crumb.durationMs)ms"
+        if let err = crumb.error, !err.isEmpty { s += " · 错误：\(err)" }
+        return s
     }
 
     /// 由快捷分类生成上报标签。
