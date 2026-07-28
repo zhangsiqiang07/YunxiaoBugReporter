@@ -8,8 +8,7 @@ import UIKit
 /// - 当前页面、路由、网络类型、最近操作轨迹、最近网络请求等**需宿主埋点采集**，
 ///   由宿主在触发点（如 DoKit 长按）调用 `snapshot()` 冻结为 `YXBHostContext`，
 ///   再传给 `SubmitView(hostContext:)`；**SDK 不依赖宿主的埋点 / 网络层**；
-/// - 敏感字段（用户 ID、Authorization、Cookie、手机号、完整 query、请求 / 响应 body）不进入上下文，
-///   由宿主在采集侧脱敏（见 `YXBNetworkBreadcrumb` 的隐私红线）。
+/// - 网络请求与响应会由宿主在 Debug 环境注入；认证字段必须在采集侧脱敏。
 public struct YXBBugContext {
     public var appVersion: String?
     public var build: String?
@@ -29,7 +28,7 @@ public struct YXBBugContext {
     public var timestamp: Date
     /// 最近操作轨迹（文本摘要）；由宿主采集后通过 `YXBHostContext` 快照注入。
     public var recentActions: [String]
-    /// 最近网络请求面包屑（已脱敏，仅含 method / 脱敏 path / statusCode / 耗时 / 错误）；
+/// 最近网络请求面包屑（请求与响应仅脱敏认证信息）；
     /// SDK 自身不采集网络，需宿主在统一网络层记录并通过 `YXBHostContext` 快照注入。
     public var recentRequests: [YXBNetworkBreadcrumb]
 
@@ -84,7 +83,7 @@ public struct YXBBugContext {
         lines.append("- 时间：\(df.string(from: timestamp))")
 
         if !recentActions.isEmpty {
-            lines.append("- 最近操作：\(recentActions.joined(separator: " → "))")
+            lines.append("- 最近操作：\(recentActions.joined(separator: " →\n"))")
         }
 
         return lines
@@ -143,26 +142,30 @@ public enum YXBBugContextCollector {
 
 /// 单条网络请求「面包屑」：随 Bug 上报附带的最近网络轨迹。
 ///
-/// **隐私红线（宿主侧必须遵守）**：仅记录脱敏后的 `path`（如 `/api/pet/detail`），
-/// 禁止采集 / 上传以下任何内容：
+/// **隐私红线（宿主侧必须遵守）**：认证相关信息必须脱敏，至少包括：
 /// - `Authorization` / `Cookie` 等鉴权头；
-/// - 手机号、邮箱、身份证等个人身份信息；
-/// - 完整 query（仅保留 path，参数一律丢弃）或请求 / 响应 body；
-/// - 任何可能反推出用户身份或业务敏感数据的字段。
-///
-/// 耗时（`durationMs`）与 `statusCode` 可帮助定位超时 / 5xx，属安全范围。
+/// - URL query 与 JSON body 中的 token、credential、api key 等认证字段。
+/// 完整请求与响应仅用于受控 Debug 上报，宿主需确保云效项目的访问权限与留存合规。
 public struct YXBNetworkBreadcrumb: Identifiable, Hashable, Sendable {
     public let id: UUID
     /// HTTP 方法，如 `GET` / `POST`。
     public let method: String
-    /// 脱敏后的路径（不含 query、不含 host 明文敏感信息）。
+    /// 请求路径。
     public let path: String
+    /// 请求 Header（认证字段已脱敏）。
+    public let requestHeaders: [String: String]
+    /// 请求 Body（认证字段已脱敏）。
+    public let requestBody: String?
     /// 响应状态码；请求失败（如超时、无网络）时为 `nil`。
     public let statusCode: Int?
     /// 耗时（毫秒）。
     public let durationMs: Int
     /// 错误摘要（如 `timeout` / `noNetwork` / `decodingFailed`）；无错误为 `nil`。
     public let error: String?
+    /// 响应 Header（认证字段已脱敏）。
+    public let responseHeaders: [String: String]
+    /// 响应 Body（认证字段已脱敏）。
+    public let responseBody: String?
     /// 请求发生时间。
     public let timestamp: Date
 
@@ -170,17 +173,25 @@ public struct YXBNetworkBreadcrumb: Identifiable, Hashable, Sendable {
         id: UUID = UUID(),
         method: String,
         path: String,
+        requestHeaders: [String: String] = [:],
+        requestBody: String? = nil,
         statusCode: Int?,
         durationMs: Int,
         error: String?,
+        responseHeaders: [String: String] = [:],
+        responseBody: String? = nil,
         timestamp: Date = Date()
     ) {
         self.id = id
         self.method = method
         self.path = path
+        self.requestHeaders = requestHeaders
+        self.requestBody = requestBody
         self.statusCode = statusCode
         self.durationMs = durationMs
         self.error = error
+        self.responseHeaders = responseHeaders
+        self.responseBody = responseBody
         self.timestamp = timestamp
     }
 }

@@ -244,7 +244,7 @@ public struct SubmitView: View {
                     }
                     if !ctx.recentRequests.isEmpty {
                         Divider()
-                        Text("最近网络请求（\(ctx.recentRequests.count) 条，已脱敏）")
+                        Text("最近网络请求（\(ctx.recentRequests.count) 条，认证信息已脱敏）")
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                         ForEach(ctx.recentRequests.prefix(8)) { crumb in
@@ -371,28 +371,54 @@ public struct SubmitView: View {
 
         parts.append("## 环境信息\n" + ctx.descriptionLines.joined(separator: "\n"))
 
-        // 最近网络请求（已脱敏）：仅 method / 脱敏 path / 状态码 / 耗时 / 错误。
+        // 最近网络请求：保留完整请求 / 响应，认证信息由宿主在注入前脱敏。
         if !ctx.recentRequests.isEmpty {
-            let lines = ctx.recentRequests.map { crumb -> String in
-                var s = "\(crumb.method) \(crumb.path)"
-                if let code = crumb.statusCode { s += " · \(code)" }
-                s += " · \(crumb.durationMs)ms"
-                if let err = crumb.error, !err.isEmpty { s += " · 错误：\(err)" }
-                return "- \(s)"
-            }
-            parts.append("## 最近网络请求\n" + lines.joined(separator: "\n"))
+            parts.append(
+                "## 最近网络请求\n" +
+                ctx.recentRequests.map(networkBreadcrumbDetail).joined(separator: "\n\n---\n\n")
+            )
         }
 
         return parts.joined(separator: "\n\n")
     }
 
-    /// 单条网络请求面包屑的预览文本（脱敏，仅 method/path/状态码/耗时/错误）。
+    /// 单条网络请求面包屑的预览文本。
     private func networkBreadcrumbLine(_ crumb: YXBNetworkBreadcrumb) -> String {
         var s = "\(crumb.method) \(crumb.path)"
         if let code = crumb.statusCode { s += " · \(code)" }
         s += " · \(crumb.durationMs)ms"
         if let err = crumb.error, !err.isEmpty { s += " · 错误：\(err)" }
         return s
+    }
+
+    private func networkBreadcrumbDetail(_ crumb: YXBNetworkBreadcrumb) -> String {
+        var summary = [
+            "**\(crumb.method) \(crumb.path)**  ·  \(crumb.statusCode.map(String.init) ?? "无")  ·  \(crumb.durationMs)ms"
+        ]
+        if let error = crumb.error, !error.isEmpty {
+            summary.append("错误：\(error)")
+        }
+        if !crumb.requestHeaders.isEmpty {
+            summary.append("请求 Header：\(headerText(crumb.requestHeaders))")
+        }
+        var bodySections = [summary.joined(separator: "；")]
+        if let body = crumb.requestBody, !body.isEmpty {
+            bodySections.append("请求体\n```text\n\(body)\n```")
+        }
+        if !crumb.responseHeaders.isEmpty {
+            bodySections[0] += "；响应 Header：\(headerText(crumb.responseHeaders))"
+        }
+        if let body = crumb.responseBody, !body.isEmpty {
+            bodySections.append("响应体\n```text\n\(body)\n```")
+        }
+        return bodySections.joined(separator: "\n")
+    }
+
+    private func headerText(_ headers: [String: String]) -> String {
+        headers
+            .sorted { $0.key.localizedCaseInsensitiveCompare($1.key) == .orderedAscending }
+            .map { "\($0.key): \($0.value)" }
+            .joined(separator: "；")
     }
 
     /// 由快捷分类生成上报标签。
