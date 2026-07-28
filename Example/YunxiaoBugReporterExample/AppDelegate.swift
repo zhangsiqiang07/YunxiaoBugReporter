@@ -85,6 +85,13 @@ final class ExampleRootViewController: UIViewController {
         super.viewDidLoad()
         title = "示例宿主"
         view.backgroundColor = .systemBackground
+
+        // 演示：宿主向 SDK 注入「自动环境信息」（真实接入时由页面/路由/网络埋点提供）。
+        store.currentPage = "ExampleRootViewController"
+        store.currentRoute = "example/home"
+        store.currentNetwork = "Wi-Fi"
+        store.track(action: "进入示例宿主首页")
+
         setupButtons()
     }
 
@@ -107,11 +114,13 @@ final class ExampleRootViewController: UIViewController {
 
     /// 直接进入 SDK 的「提交 Bug」页面。
     @objc private func openReporter() {
+        store.track(action: "点击「打开 Bug 上报」")
         presentSubmit(sourceImages: [])
     }
 
     /// 截取宿主窗口（模拟「原应用」产生的截图），直接带入「提交 Bug」页面作为预置附件。
     @objc private func openWithScreenshot() {
+        store.track(action: "点击「带原应用截图打开」")
         guard let window = view.window else {
             presentSubmit(sourceImages: [])
             return
@@ -143,6 +152,7 @@ final class ExampleRootViewController: UIViewController {
 
     /// 打开完整界面（Bug 列表 / 云效配置 TabBar），便于配置与查看历史。
     @objc private func openFull() {
+        store.track(action: "点击「打开完整界面」")
         let reporter = BugReporterRootViewController(store: store)
         reporter.modalPresentationStyle = .fullScreen
         present(reporter, animated: true, completion: nil)

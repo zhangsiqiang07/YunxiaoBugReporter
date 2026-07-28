@@ -40,8 +40,8 @@ public struct SubmitView: View {
     /// 当前正在标注的图片（点开缩略图进入全屏标注器）。
     @State private var annotateTarget: AnnotateTarget?
 
-    /// 自动采集的上下文（onAppear 采集一次；展示时按当前截图数实时更新）。
-    @State private var context: YXBBugContext?
+    /// 自动采集的上下文（onAppear 采集一次；展示时叠加宿主注入值并按时截图数更新）。
+    @State private var baseContext: YXBBugContext?
     @State private var showContext = false
 
     // MARK: - 工作项类型字段（必填列表项）
@@ -278,17 +278,22 @@ public struct SubmitView: View {
             guard !isLoadingFields else { return }
             Task { await loadFields() }
             Task { await loadMembers() }
-            if context == nil {
-                context = YXBBugContextCollector.collect(screenshotCount: images.count)
+            if baseContext == nil {
+                baseContext = YXBBugContextCollector.collect(screenshotCount: images.count)
             }
         }
     }
 
-    /// 实时上下文：以采集到的上下文为基础，按当前截图数更新。
+    /// 实时上下文：以采集到的设备/App 信息为基础，叠加宿主通过 `YXBConfigStore` 注入的
+    /// 页面 / 路由 / 网络 / 操作轨迹。
     private var liveContext: YXBBugContext {
-        var base = context ?? YXBBugContextCollector.collect(screenshotCount: images.count)
-        base.screenshotCount = images.count
-        return base
+        var ctx = baseContext ?? YXBBugContextCollector.collect(screenshotCount: images.count)
+        ctx.screenshotCount = images.count
+        if let page = store.currentPage, !page.isEmpty { ctx.page = page }
+        if let route = store.currentRoute, !route.isEmpty { ctx.route = route }
+        if let network = store.currentNetwork, !network.isEmpty { ctx.network = network }
+        if !store.recentActions.isEmpty { ctx.recentActions = store.recentActions }
+        return ctx
     }
 
     /// 自动拼接的标题：`【iOS】` + `【问题类型】` + `【严重程度】` + `【发生频率】` + 补充描述。

@@ -59,6 +59,32 @@ public final class YXBConfigStore: ObservableObject {
     /// 也可在代码中直接赋值（如 `store.token = ...`）。
     @Published public var token: String
 
+    // MARK: - 宿主注入的上下文（补充「自动采集环境信息」）
+
+    /// 当前页面标识（如 `PetDetailViewController`），由宿主接入页面埋点后注入；
+    /// 为 `nil` 时提交页显示「待采集」。
+    public var currentPage: String?
+    /// 当前路由（如 `pet/detail`），由宿主注入。
+    public var currentRoute: String?
+    /// 网络类型（如 `Wi-Fi` / `蜂窝` / `无`），由宿主注入。
+    public var currentNetwork: String?
+    /// 最近操作轨迹（文本摘要），随 Bug 上报附带；由宿主通过 `track(action:)` 累积。
+    @Published public private(set) var recentActions: [String] = []
+    /// 保留的最近操作条数上限。
+    public var maxRecentActions = 50
+
+    /// 记录一条用户操作（保留最近 `maxRecentActions` 条，新的在前）。
+    /// 宿主可在关键路径调用，例如页面进入、按钮点击、Tab 切换、网络请求失败等
+    /// （建议配合白名单与字段脱敏，避免记录隐私）。
+    public func track(action: String) {
+        let trimmed = action.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var next = recentActions
+        next.insert(trimmed, at: 0)
+        if next.count > maxRecentActions { next = Array(next.prefix(maxRecentActions)) }
+        recentActions = next
+    }
+
     private let defaultsKey: String
 
     public init(
