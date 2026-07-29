@@ -1,7 +1,23 @@
 import Foundation
 
-/// 调用 Bug AI 服务所需的客户端输入。仅包含用户描述与脱敏后的上下文，
-/// 不包含截图、网络请求正文、云效 Token 或任何模型凭据。
+/// 提供给 Bug AI 服务的压缩截图。图片只用于当前次 AI 整理，不会由 SDK 持久化。
+public struct YXBBugAIImage: Encodable, Sendable {
+    public let data: Data
+    public let mimeType: String
+
+    enum CodingKeys: String, CodingKey {
+        case data
+        case mimeType = "mime_type"
+    }
+
+    public init(data: Data, mimeType: String) {
+        self.data = data
+        self.mimeType = mimeType
+    }
+}
+
+/// 调用 Bug AI 服务所需的客户端输入。仅包含用户描述、脱敏后的上下文和可选压缩截图，
+/// 不包含网络请求正文、云效 Token 或任何模型凭据。
 public struct YXBBugAIGenerateRequest: Encodable, Sendable {
     public struct Page: Encodable, Sendable {
         public let name: String?
@@ -45,13 +61,15 @@ public struct YXBBugAIGenerateRequest: Encodable, Sendable {
     public let environment: Environment?
     /// 宿主自定义、已脱敏的补充上下文；服务端以既有 `extra` 字段接收。
     public let extra: [String: String]
+    /// 最多三张已压缩的截图；有图时服务端自动选择视觉模型。
+    public let images: [YXBBugAIImage]
 
     enum CodingKeys: String, CodingKey {
         case description
         case issueType = "issue_type"
         case severity, frequency, page
         case recentActions = "recent_actions"
-        case environment, extra
+        case environment, extra, images
     }
 
     public init(
@@ -62,7 +80,8 @@ public struct YXBBugAIGenerateRequest: Encodable, Sendable {
         page: Page?,
         recentActions: [String],
         environment: Environment?,
-        extra: [String: String] = [:]
+        extra: [String: String] = [:],
+        images: [YXBBugAIImage] = []
     ) {
         self.description = description
         self.issueType = issueType
@@ -72,6 +91,7 @@ public struct YXBBugAIGenerateRequest: Encodable, Sendable {
         self.recentActions = recentActions
         self.environment = environment
         self.extra = extra
+        self.images = images
     }
 }
 

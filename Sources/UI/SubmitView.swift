@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 /// Bug 提交页面：选择快捷分类、描述现象（可语音）、附加标注截图，点击提交。
 ///
@@ -545,7 +546,8 @@ public struct SubmitView: View {
                         osVersion: context.osVersion,
                         network: context.network
                     ),
-                    extra: context.supplementaryInfo
+                    extra: context.supplementaryInfo,
+                    images: aiImages()
                 )
             )
             applyAIReport(report)
@@ -577,6 +579,36 @@ public struct SubmitView: View {
         case "once": frequency = .first
         default: break
         }
+    }
+
+    /// 视觉请求使用用户最终标注过的截图，并限制尺寸与质量，避免拖慢上传或超出服务端 2 MiB 上限。
+    private func aiImages() -> [YXBBugAIImage] {
+        images.prefix(3).compactMap { item in
+            let annotated = yxb_bakeAnnotations(into: item.image, annotations: item.annotations)
+            guard let data = aiJPEGData(from: annotated) else { return nil }
+            return YXBBugAIImage(data: data, mimeType: "image/jpeg")
+        }
+    }
+
+    private func aiJPEGData(from image: UIImage) -> Data? {
+        let maxDimension: CGFloat = 1_280
+        let largestSide = max(image.size.width, image.size.height)
+        let targetSize: CGSize
+        if largestSide > maxDimension {
+            let scale = maxDimension / largestSide
+            targetSize = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        } else {
+            targetSize = image.size
+        }
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let scaled = renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: targetSize)) }
+        for quality in [0.75, 0.6, 0.45] {
+            if let data = scaled.jpegData(compressionQuality: quality), data.count <= 2 * 1024 * 1024 {
+                return data
+            }
+        }
+        return nil
     }
 
     private func formattedAIContent(_ report: YXBBugAIGeneratedReport) -> String {

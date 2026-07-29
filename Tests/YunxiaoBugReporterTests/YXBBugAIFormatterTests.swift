@@ -29,6 +29,25 @@ final class YXBBugAIFormatterTests: XCTestCase {
         XCTAssertEqual((body["extra"] as? [String: String])?["登录状态"], "已登录")
     }
 
+    func testRequestEncodesScreenshotsAsBase64() throws {
+        let request = YXBBugAIGenerateRequest(
+            description: "点击保存无响应",
+            issueType: nil,
+            severity: nil,
+            frequency: nil,
+            page: nil,
+            recentActions: [],
+            environment: nil,
+            images: [YXBBugAIImage(data: Data([0x01, 0x02]), mimeType: "image/jpeg")]
+        )
+
+        let data = try JSONEncoder().encode(request)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let image = try XCTUnwrap((body["images"] as? [[String: Any]])?.first)
+        XCTAssertEqual(image["mime_type"] as? String, "image/jpeg")
+        XCTAssertEqual(image["data"] as? String, "AQI=")
+    }
+
     func testEndpointAppendsGeneratePath() throws {
         let endpoint = try YXBRemoteBugAIFormatter.makeEndpoint(serviceDomain: "https://bug-ai.example.com/gateway/")
         XCTAssertEqual(endpoint.absoluteString, "https://bug-ai.example.com/gateway/api/v1/bug-report/generate")
