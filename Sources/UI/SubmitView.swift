@@ -54,9 +54,6 @@ public struct SubmitView: View {
     @State private var isFormattingWithAI = false
     @State private var aiFormattingMessage: String?
     @State private var aiFormattingFailed = false
-    /// 描述格式：默认 Markdown，使组装的「## 标题」与环境信息列表渲染更清晰。
-    @State private var formatRaw = "MD"
-
     // MARK: - 快捷分类（问题类型 / 严重程度 / 发生频率）
     @State private var issueType: YXBIssueType? = .function
     @State private var severity: YXBSeverity?
@@ -73,6 +70,8 @@ public struct SubmitView: View {
     /// 自动采集的上下文（onAppear 采集一次；展示时叠加宿主注入值并按时截图数更新）。
     @State private var baseContext: YXBBugContext?
     @State private var showContext = false
+    @State private var showSupplementary = false
+    @State private var showAIContent = false
 
     // MARK: - 工作项类型字段（必填列表项）
     @State private var fieldDefinitions: [YXBFieldDefinition] = []
@@ -87,204 +86,18 @@ public struct SubmitView: View {
 
     public var body: some View {
         Form {
-            Section("指派给") {
-                if isLoadingMembers {
-                    HStack {
-                        Text("加载成员中…")
-                        Spacer()
-                        ProgressView()
-                    }
-                } else if memberOptions.isEmpty {
-                    // 成员列表为空（未配置 / 拉取失败）时，回退为手动输入用户 ID。
-                    TextField("负责人用户 ID", text: $store.assignedTo)
-                        .textInputAutocapitalization(.never)
-                        .onChange(of: store.assignedTo) { _ in
-                            store.assignedToName = ""
-                            store.save()
-                        }
-                    if let message = memberLoadError {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                    }
-                } else {
-                    Picker("负责人", selection: $store.assignedTo) {
-                        ForEach(memberOptions) { member in
-                            Text(member.name).tag(member.id)
-                        }
-                    }
-                    .onChange(of: store.assignedTo) { newValue in
-                        store.assignedToName = memberOptions.first(where: { $0.id == newValue })?.name ?? ""
-                        store.save()
-                    }
-                    if !store.assignedToName.isEmpty {
-                        Text("当前选择：\(store.assignedToName)（\(store.assignedTo)）")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if !memberOptions.isEmpty || memberLoadError != nil {
-                    Button {
-                        Task { await loadMembers() }
-                    } label: {
-                        if isLoadingMembers {
-                            ProgressView()
-                        } else {
-                            Text("重新加载成员列表")
-                        }
-                    }
-                    .disabled(isLoadingMembers)
-                }
-            }
-
-            requiredFieldsSection
-
-            Section("问题分类（可选，用于标题标签与描述）") {
-                ChipGroup(title: "问题类型", options: YXBIssueType.allCases, display: { $0.displayName }, selection: $issueType)
-                // 若云效工作项类型已把「严重程度」作为必填字段（上边会渲染为胶囊），
-                // 则此处不再重复提供，避免两处选择。
-                if severityField == nil {
-                    ChipGroup(title: "严重程度", options: YXBSeverity.allCases, display: { $0.displayName }, selection: $severity)
-                }
-                ChipGroup(title: "发生频率", options: YXBFrequency.allCases, display: { $0.displayName }, selection: $frequency)
-            }
-
-            Section("Bug 描述") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(generatedTitle.isEmpty ? "用一句话描述现象（点击键盘麦克风可语音输入）" : "AI 整理内容（可直接修改）")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                    TextEditor(text: $userDescription)
-                        .frame(minHeight: generatedTitle.isEmpty ? 120 : 240)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(.separator), lineWidth: 0.5)
-                        )
-                }
-
-                if store.aiServiceDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text("未配置 Bug AI 服务，仍可手动填写。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Button {
-                        Task { await formatWithAI() }
-                    } label: {
-                        if isFormattingWithAI {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                Text("AI 整理中…")
-                            }
-                        } else {
-                            Label("AI 整理并回填", systemImage: "sparkles")
-                        }
-                    }
-                    .disabled(isFormattingWithAI || userDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityHint("根据现象描述和已脱敏上下文，回填 Bug 标题、复现步骤和结果")
-
-                    if let message = aiFormattingMessage {
-                        Text(message)
-                            .font(.footnote)
-                            .foregroundStyle(aiFormattingFailed ? .red : .secondary)
-                    }
-                }
-
-                if !generatedTitle.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("提交标题（自动生成）")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        Text(composedTitle)
-                            .font(.subheadline)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-                Picker("描述格式", selection: $formatRaw) {
-                    Text("Markdown").tag("MD")
-                    Text("纯文本").tag("TEXT")
-                }
-                .pickerStyle(.segmented)
-            }
+            primaryDescriptionSection
+            evidenceSection
 
             Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(images) { item in
-                            ZStack(alignment: .topTrailing) {
-                                Button {
-                                    annotateTarget = AnnotateTarget(id: item.id, image: item.image, annotations: item.annotations)
-                                } label: {
-                                    ZStack {
-                                        Image(uiImage: item.image)
-                                            .resizable()
-                                            .scaledToFill()
-                                            .frame(width: 76, height: 76)
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                        annotationOverlay(for: item.annotations, in: CGSize(width: 76, height: 76), imageSize: item.image.size)
-                                    }
-                                }
-                                Button {
-                                    images.removeAll { $0.id == item.id }
-                                } label: {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.white, .black.opacity(0.55))
-                                        .font(.system(size: 20))
-                                }
-                                .padding(4)
-                            }
-                        }
-                        Button {
-                            showPicker = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 26, weight: .medium))
-                                .foregroundStyle(.tint)
-                                .frame(width: 76, height: 76)
-                                .background(RoundedRectangle(cornerRadius: 12).fill(Color(.secondarySystemBackground)))
-                        }
-                    }
-                    .padding(.vertical, 4)
+                DisclosureGroup("补充信息", isExpanded: $showSupplementary) {
+                    assigneeContent
+                    requiredFieldsContent
+                    classificationContent
+                    environmentContent
                 }
-            } header: { Text("截图附件（可选，点开可标注红框 / 箭头）") }
-
-            Section {
-                let ctx = liveContext
-                DisclosureGroup("自动采集环境信息", isExpanded: $showContext) {
-                    ForEach(Array(ctx.descriptionLines.enumerated()), id: \.offset) { _, line in
-                        Text(line)
-                            .font(.footnote)
-                    }
-                    if !ctx.recentRequests.isEmpty {
-                        Divider()
-                        Text("最近网络请求（\(ctx.recentRequests.count) 条，认证信息已脱敏）")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                        ForEach(ctx.recentRequests.prefix(8)) { crumb in
-                            Text(YXBDescriptionComposer.networkSummary(crumb, prefix: ""))
-                                .font(.footnote)
-                        }
-                    }
-                    Text("设备 / App 由 SDK 采集；页面 / 路由 / 网络 / 操作 / 最近请求由宿主通过 YXBHostContext 注入。")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Section {
-                Button {
-                    Task { await submit() }
-                } label: {
-                    if isSubmitting {
-                        ProgressView()
-                    } else {
-                        Text("提交 Bug")
-                            .font(.headline)
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .disabled(isSubmitting || !requiredFieldsFilled)
+            } footer: {
+                Text("可按需补充分类、负责人、云效必填字段及诊断信息。")
             }
 
             if let resultText = resultText {
@@ -296,6 +109,10 @@ public struct SubmitView: View {
             }
         }
         .navigationTitle("提交 Bug")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            submitBar
+        }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $showPicker) {
             PhotoPicker(images: $images)
         }
@@ -313,6 +130,332 @@ public struct SubmitView: View {
             Task { await loadMembers() }
             if baseContext == nil {
                 baseContext = YXBBugContextCollector.collect(screenshotCount: images.count)
+            }
+        }
+    }
+
+    private var primaryDescriptionSection: some View {
+        Section("描述问题") {
+            if generatedTitle.isEmpty {
+                initialDescriptionContent
+            } else {
+                aiResultContent
+            }
+        }
+    }
+
+    private var initialDescriptionContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("用一句话描述你看到的问题")
+                .font(.headline)
+            Text("例如：点击未读数后，页面没有刷新。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            TextEditor(text: $userDescription)
+                .frame(minHeight: 112)
+                .padding(6)
+                .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityLabel("问题描述")
+            issueTypePicker
+            aiAction
+        }
+    }
+
+    private var aiResultContent: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles")
+                    .foregroundStyle(.tint)
+                Text("AI 已整理")
+                    .font(.headline)
+                Spacer()
+                issueTypePicker
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("提交标题")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                Text(composedTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider()
+            aiSummaryRow(title: "问题现象", icon: "exclamationmark.circle", text: aiContent(after: "## 问题描述"))
+            aiSummaryRow(title: "复现步骤", icon: "list.number", text: aiContent(after: "## 复现步骤"))
+            aiSummaryRow(title: "期望结果", icon: "checkmark.circle", text: aiContent(after: "## 期望结果"))
+
+            DisclosureGroup("查看并编辑完整内容", isExpanded: $showAIContent) {
+                TextEditor(text: $userDescription)
+                    .frame(minHeight: 180)
+                    .padding(6)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityLabel("AI 优化后的问题描述")
+                    .padding(.top, 8)
+            }
+            .font(.subheadline.weight(.medium))
+
+            aiAction
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var issueTypePicker: some View {
+        Menu {
+            Button("不标记问题类型") { issueType = nil }
+            ForEach(YXBIssueType.allCases) { type in
+                Button {
+                    issueType = type
+                } label: {
+                    if type == issueType {
+                        Label(type.displayName, systemImage: "checkmark")
+                    } else {
+                        Text(type.displayName)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(issueType?.displayName ?? "问题类型")
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.bold))
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(issueType == nil ? Color.secondary : Color.accentColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background(Color.accentColor.opacity(issueType == nil ? 0.06 : 0.12), in: Capsule())
+        }
+        .accessibilityLabel("问题类型")
+        .accessibilityValue(issueType?.displayName ?? "未选择")
+    }
+
+    @ViewBuilder
+    private func aiSummaryRow(title: String, icon: String, text: String?) -> some View {
+        if let text, !text.isEmpty {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 18)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                    Text(text)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                }
+            }
+        }
+    }
+
+    private var aiAction: some View {
+        Group {
+            if store.aiServiceDomain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                Text("未配置 Bug AI 服务，仍可直接提交。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                if generatedTitle.isEmpty {
+                    formatButton
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    formatButton
+                        .buttonStyle(.bordered)
+                }
+
+                if let message = aiFormattingMessage {
+                    Text(message)
+                        .font(.footnote)
+                        .foregroundStyle(aiFormattingFailed ? .red : .secondary)
+                }
+            }
+        }
+    }
+
+    private var formatButton: some View {
+        Button {
+            Task { await formatWithAI() }
+        } label: {
+            HStack {
+                Spacer()
+                if isFormattingWithAI {
+                    ProgressView()
+                    Text("AI 优化中…")
+                } else {
+                    Label(generatedTitle.isEmpty ? "AI 优化描述" : "重新优化", systemImage: "sparkles")
+                }
+                Spacer()
+            }
+        }
+        .disabled(isFormattingWithAI || userDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        .accessibilityHint("根据描述和已脱敏上下文，优化标题、复现步骤和结果")
+    }
+
+    private var evidenceSection: some View {
+        Section {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("证据截图")
+                        .font(.headline)
+                    Text(images.isEmpty ? "推荐添加，支持红框和箭头标注。" : "已添加 \(images.count) 张，点击缩略图可继续标注。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if !images.isEmpty {
+                    Text("可标注")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.tint)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentColor.opacity(0.1), in: Capsule())
+                }
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(images) { item in
+                        ZStack(alignment: .topTrailing) {
+                            Button {
+                                annotateTarget = AnnotateTarget(id: item.id, image: item.image, annotations: item.annotations)
+                            } label: {
+                                ZStack {
+                                    Image(uiImage: item.image)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 104, height: 96)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    annotationOverlay(for: item.annotations, in: CGSize(width: 104, height: 96), imageSize: item.image.size)
+                                }
+                            }
+                            Button {
+                                images.removeAll { $0.id == item.id }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.white, .black.opacity(0.55))
+                                    .font(.system(size: 20))
+                            }
+                            .frame(width: 44, height: 44)
+                            .accessibilityLabel("删除截图")
+                        }
+                    }
+                    Button {
+                        showPicker = true
+                    } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: "camera.fill")
+                                .font(.title2)
+                            Text("添加截图")
+                                .font(.footnote.weight(.medium))
+                        }
+                        .foregroundStyle(.tint)
+                        .frame(width: 112, height: 96)
+                        .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private var submitBar: some View {
+        VStack(spacing: 0) {
+            Divider()
+            Button {
+                Task { await submit() }
+            } label: {
+                HStack {
+                    Spacer()
+                    if isSubmitting {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text("提交 Bug")
+                            .font(.headline)
+                    }
+                    Spacer()
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+            .disabled(isSubmitting || userDescription.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+            .padding(.bottom, 8)
+        }
+        .background(Color(.systemBackground))
+    }
+
+    @ViewBuilder
+    private var assigneeContent: some View {
+        if isLoadingMembers {
+            HStack { Text("加载负责人中…"); Spacer(); ProgressView() }
+        } else if memberOptions.isEmpty {
+            TextField("负责人用户 ID", text: $store.assignedTo)
+                .textInputAutocapitalization(.never)
+                .onChange(of: store.assignedTo) { _ in
+                    store.assignedToName = ""
+                    store.save()
+                }
+            if let message = memberLoadError {
+                Text(message).font(.footnote).foregroundStyle(.orange)
+            }
+        } else {
+            Picker("负责人", selection: $store.assignedTo) {
+                ForEach(memberOptions) { member in Text(member.name).tag(member.id) }
+            }
+            .onChange(of: store.assignedTo) { newValue in
+                store.assignedToName = memberOptions.first(where: { $0.id == newValue })?.name ?? ""
+                store.save()
+            }
+        }
+
+        if !memberOptions.isEmpty || memberLoadError != nil {
+            Button(isLoadingMembers ? "加载成员中…" : "重新加载成员") {
+                Task { await loadMembers() }
+            }
+            .disabled(isLoadingMembers)
+        }
+    }
+
+    @ViewBuilder
+    private var requiredFieldsContent: some View {
+        if isLoadingFields {
+            HStack { Text("加载云效必填字段中…"); Spacer(); ProgressView() }
+        } else if let error = fieldLoadError {
+            Text("字段加载失败：\(error)").font(.footnote).foregroundStyle(.red)
+            Button("重试") { Task { await loadFields() } }
+        } else {
+            ForEach(requiredListFields) { field in
+                ChipGroup(title: field.name, options: field.options, display: { $0.displayValue }, selection: chipBinding(for: field))
+            }
+        }
+    }
+
+    private var classificationContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if severityField == nil {
+                ChipGroup(title: "严重程度", options: YXBSeverity.allCases, display: { $0.displayName }, selection: $severity)
+            }
+            ChipGroup(title: "发生频率", options: YXBFrequency.allCases, display: { $0.displayName }, selection: $frequency)
+        }
+    }
+
+    private var environmentContent: some View {
+        let ctx = liveContext
+        return DisclosureGroup("自动采集环境信息", isExpanded: $showContext) {
+            ForEach(Array(ctx.descriptionLines.enumerated()), id: \.offset) { _, line in
+                Text(line).font(.footnote)
+            }
+            if !ctx.recentRequests.isEmpty {
+                Divider()
+                Text("最近网络请求（\(ctx.recentRequests.count) 条，认证信息已脱敏）")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                ForEach(ctx.recentRequests.prefix(8)) { crumb in
+                    Text(YXBDescriptionComposer.networkSummary(crumb, prefix: "")).font(.footnote)
+                }
             }
         }
     }
@@ -450,6 +593,24 @@ public struct SubmitView: View {
         return sections.joined(separator: "\n\n")
     }
 
+    /// 从 AI 整理后的 Markdown 中提取指定段落，用于收起状态下的可扫读摘要。
+    /// 若用户手动删除标题或内容，返回 `nil`，完整文本仍可在展开后继续编辑。
+    private func aiContent(after heading: String) -> String? {
+        guard let headingRange = userDescription.range(of: heading) else { return nil }
+        let remainder = userDescription[headingRange.upperBound...]
+        let nextHeading = remainder.range(of: "\n## ")
+        let content = nextHeading.map { remainder[..<$0.lowerBound] } ?? remainder[...]
+        let normalized = content
+            .split(whereSeparator: \.isNewline)
+            .map { line -> String in
+                let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                return trimmed.replacingOccurrences(of: "^\\d+\\.\\s*", with: "", options: .regularExpression)
+            }
+            .filter { !$0.isEmpty }
+            .joined(separator: "；")
+        return normalized.isEmpty ? nil : normalized
+    }
+
     private func aiFrequencyValue(_ value: YXBFrequency?) -> String? {
         switch value {
         case .always: return "always"
@@ -489,39 +650,6 @@ public struct SubmitView: View {
         requiredListFields.allSatisfy {
             guard let value = customFieldValues[$0.id] else { return false }
             return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-    }
-
-    @ViewBuilder
-    private var requiredFieldsSection: some View {
-        if isLoadingFields {
-            Section("必填字段") {
-                HStack {
-                    Text("加载字段配置中…")
-                    Spacer()
-                    ProgressView()
-                }
-            }
-        } else if let error = fieldLoadError {
-            Section("必填字段") {
-                Text("加载失败：\(error)")
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                Button("重试") {
-                    Task { await loadFields() }
-                }
-            }
-        } else {
-            ForEach(requiredListFields) { field in
-                Section(field.name) {
-                    ChipGroup(
-                        title: nil,
-                        options: field.options,
-                        display: { $0.displayValue },
-                        selection: chipBinding(for: field)
-                    )
-                }
-            }
         }
     }
 
@@ -641,6 +769,7 @@ public struct SubmitView: View {
         defer { isSubmitting = false }
 
         guard requiredFieldsFilled else {
+            showSupplementary = true
             let missing = requiredListFields
                 .filter { customFieldValues[$0.id]?.isEmpty ?? true }
                 .map(\.name)
@@ -651,6 +780,7 @@ public struct SubmitView: View {
         }
 
         guard !store.assignedTo.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            showSupplementary = true
             resultText = "请选择负责人（指派给）后再提交。"
             resultIsError = true
             return
@@ -683,7 +813,7 @@ public struct SubmitView: View {
             let report = YXBBugReport(
                 title: composedTitle,
                 description: descriptionText,
-                format: formatRaw == "MD" ? .markdown : .plainText,
+                format: .markdown,
                 customFields: customFieldValues,
                 labels: labels,
                 attachments: attachments
