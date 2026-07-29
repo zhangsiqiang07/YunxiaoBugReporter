@@ -32,4 +32,50 @@ final class YXBDescriptionComposerTests: XCTestCase {
         XCTAssertTrue(description.contains("请求体\n````text\n```text\nrequest body\n````"))
         XCTAssertTrue(description.contains("响应体\n````text\n```text\nresponse body\n````"))
     }
+
+    func testUnclosedFencesInBodyAndEnvironmentDoNotConsumeFollowingSections() {
+        let context = YXBBugContext(
+            page: "DetailView\n```json\n{\"id\": 1}",
+            recentRequests: [
+                YXBNetworkBreadcrumb(
+                    method: "GET",
+                    path: "/v1/items",
+                    requestHeaders: [:],
+                    statusCode: 200,
+                    durationMs: 20,
+                    error: nil
+                )
+            ]
+        )
+
+        let description = YXBDescriptionComposer.compose(
+            body: "问题详情：\n```swift\nlet enabled = false",
+            context: context
+        )
+
+        XCTAssertTrue(description.contains("let enabled = false\n```\n\n## 环境信息"))
+        XCTAssertTrue(description.contains("{\"id\": 1}\n```\n\n## 最近网络请求"))
+    }
+
+    func testEmptyJSONRequestBodyIsRenderedAsEmptyText() {
+        let context = YXBBugContext(
+            recentRequests: [
+                YXBNetworkBreadcrumb(
+                    method: "GET",
+                    path: "/v1/messages/unread",
+                    requestHeaders: [:],
+                    requestBody: "{\n  \n}",
+                    statusCode: 200,
+                    durationMs: 244,
+                    error: nil,
+                    responseBody: "{\"success\": true}"
+                )
+            ]
+        )
+
+        let description = YXBDescriptionComposer.compose(body: "无法加载未读数", context: context)
+
+        XCTAssertTrue(description.contains("请求体：空"))
+        XCTAssertFalse(description.contains("请求体\n```text\n{\n  \n}"))
+    }
 }

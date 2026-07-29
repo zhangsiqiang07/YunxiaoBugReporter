@@ -15,6 +15,8 @@ public struct SubmitView: View {
     /// - Parameters:
     ///   - sourceImages: 由「原应用」注入的截图（如宿主 App 截图后带入提 Bug 页面），
     ///     作为预置附件展示，用户可继续增删或框选 / 箭头标注。默认空。
+    ///   - applicationIdentifier: 宿主传入的应用标识。非空时会以 `【标识】` 拼接在
+    ///     标题开头的 `【iOS】` 后；传 `nil` 或空白时省略。默认 `nil`。
     ///   - hostContext: 宿主在触发点（如 DoKit 长按）冻结的上下文快照（页面 / 路由 / 网络 /
     ///     操作轨迹 / 最近网络请求），由宿主侧采集器 `snapshot()` 产出。SDK 只消费、不采集。
     ///     传 `nil` 时回退到 `YXBConfigStore` 的实时注入值。默认 `nil`。
@@ -24,13 +26,18 @@ public struct SubmitView: View {
     ///     `dismiss`（适用于 `.sheet` / `.fullScreenCover` 等 SwiftUI 托管场景）。默认 `nil`。
     public init(
         sourceImages: [UIImage] = [],
+        applicationIdentifier: String? = nil,
         hostContext: YXBHostContext? = nil,
         onDismiss: (@MainActor () -> Void)? = nil
     ) {
         _images = State(initialValue: sourceImages.map { IdentifiedImage(image: $0) })
+        self.applicationIdentifier = applicationIdentifier
         self.hostContext = hostContext
         self.onDismiss = onDismiss
     }
+
+    /// 宿主传入的应用标识；非空时作为标题的固定标签。
+    let applicationIdentifier: String?
 
     /// 宿主冻结的上下文快照；优先于 `YXBConfigStore` 的实时值，
     /// 以避免进入上报页后 SDK 自身请求污染「最近网络」。
@@ -331,12 +338,13 @@ public struct SubmitView: View {
         return ctx
     }
 
-    /// 自动拼接的标题：`【iOS】` + 分类标签 + AI 标题（AI 未启用时回退首行描述）。
+    /// 自动拼接的标题：`【iOS】` + 可选应用标识 + 问题类型 + AI 标题
+    /// （AI 未启用时回退首行描述）。严重程度与发生频率不参与标题拼接。
     private var composedTitle: String {
         var parts: [String] = ["【iOS】"]
+        let identifier = applicationIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !identifier.isEmpty { parts.append("【\(identifier)】") }
         if let t = issueType { parts.append("【\(t.displayName)】") }
-        if let s = severity { parts.append("【\(s.displayName)】") }
-        if let f = frequency { parts.append("【\(f.displayName)】") }
         let title = generatedTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         if !title.isEmpty {
             parts.append(title)
@@ -410,21 +418,19 @@ public struct SubmitView: View {
     private func applyAIReport(_ report: YXBBugAIGeneratedReport) {
         generatedTitle = report.title
         userDescription = formattedAIContent(report)
-        issueType = YXBIssueType(rawValue: report.issueType ?? "")
+        // 仅用 AI 的明确建议覆盖现有选择；unknown 或异常值保留用户当前/默认标签。
+        if let suggestedIssueType = YXBIssueType(rawValue: report.issueType ?? "") {
+            issueType = suggestedIssueType
+        }
         if let suggestedSeverity = YXBSeverity(rawValue: report.severity) {
             severity = suggestedSeverity
             applyAISeverityToCustomField(suggestedSeverity)
-        } else {
-            severity = nil
-            if let field = severityField {
-                customFieldValues[field.id] = nil
-            }
         }
         switch report.frequency {
         case "always": frequency = .always
         case "often", "occasionally": frequency = .sometimes
         case "once": frequency = .first
-        default: frequency = nil
+        default: break
         }
     }
 
@@ -520,7 +526,7 @@ public struct SubmitView: View {
     }
 
     /// 必填列表字段的胶囊选择绑定：选项直接映射到 `customFieldValues[field.id]`；
-    /// 若为严重程度字段，best-effort 同步到 `severity` 枚举用于标题标签。
+    /// 若为严重程度字段，best-effort 同步到 `severity` 枚举以供上报标签与 AI 请求使用。
     private func chipBinding(for field: YXBFieldDefinition) -> Binding<YXBFieldOption?> {
         Binding<YXBFieldOption?>(
             get: {
