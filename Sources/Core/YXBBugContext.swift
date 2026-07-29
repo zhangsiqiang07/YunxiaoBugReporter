@@ -28,9 +28,11 @@ public struct YXBBugContext {
     public var timestamp: Date
     /// 最近操作轨迹（文本摘要）；由宿主采集后通过 `YXBHostContext` 快照注入。
     public var recentActions: [String]
-/// 最近网络请求面包屑（请求与响应仅脱敏认证信息）；
+    /// 最近网络请求面包屑（请求与响应仅脱敏认证信息）；
     /// SDK 自身不采集网络，需宿主在统一网络层记录并通过 `YXBHostContext` 快照注入。
     public var recentRequests: [YXBNetworkBreadcrumb]
+    /// 宿主自定义的、已脱敏的补充上下文。SDK 不解释字段含义，仅用于描述和 AI 整理上下文。
+    public var supplementaryInfo: [String: String]
 
     public init(
         appVersion: String? = nil,
@@ -43,7 +45,8 @@ public struct YXBBugContext {
         screenshotCount: Int = 0,
         timestamp: Date = Date(),
         recentActions: [String] = [],
-        recentRequests: [YXBNetworkBreadcrumb] = []
+        recentRequests: [YXBNetworkBreadcrumb] = [],
+        supplementaryInfo: [String: String] = [:]
     ) {
         self.appVersion = appVersion
         self.build = build
@@ -56,6 +59,7 @@ public struct YXBBugContext {
         self.timestamp = timestamp
         self.recentActions = recentActions
         self.recentRequests = recentRequests
+        self.supplementaryInfo = Self.normalizedSupplementaryInfo(supplementaryInfo)
     }
 
     /// 用于「描述」字段的环境信息行（Markdown 列表）。
@@ -86,7 +90,37 @@ public struct YXBBugContext {
             lines.append("- 最近操作：\(recentActions.joined(separator: " →\n"))")
         }
 
+        for (key, value) in supplementaryInfo.sorted(by: { $0.key.localizedStandardCompare($1.key) == .orderedAscending }) {
+            lines.append("- \(key)：\(value)")
+        }
+
         return lines
+    }
+
+    /// 自定义信息按纯文本处理：限制条目/长度、压平换行，避免外部值插入 Markdown 标题或代码围栏。
+    static func normalizedSupplementaryInfo(_ info: [String: String]) -> [String: String] {
+        let maximumEntries = 20
+        let maximumKeyLength = 80
+        let maximumValueLength = 500
+        var result: [String: String] = [:]
+
+        for (rawKey, rawValue) in info.sorted(by: { $0.key.localizedStandardCompare($1.key) == .orderedAscending }) {
+            guard result.count < maximumEntries else { break }
+            let key = compactSupplementaryText(rawKey, maximumLength: maximumKeyLength)
+            let value = compactSupplementaryText(rawValue, maximumLength: maximumValueLength)
+            guard !key.isEmpty, !value.isEmpty else { continue }
+            result[key] = value
+        }
+        return result
+    }
+
+    private static func compactSupplementaryText(_ value: String, maximumLength: Int) -> String {
+        let compact = value
+            .split(whereSeparator: \.isNewline)
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard compact.count > maximumLength else { return compact }
+        return String(compact.prefix(maximumLength)) + "…"
     }
 }
 
@@ -215,18 +249,22 @@ public struct YXBHostContext: Sendable {
     public let recentActions: [String]
     /// 最近网络请求面包屑（已脱敏），保留最近若干条。
     public let recentRequests: [YXBNetworkBreadcrumb]
+    /// 宿主自定义、已脱敏的补充信息（如登录状态、灰度实验、租户）。
+    public let supplementaryInfo: [String: String]
 
     public init(
         page: String?,
         route: String?,
         network: String?,
         recentActions: [String],
-        recentRequests: [YXBNetworkBreadcrumb]
+        recentRequests: [YXBNetworkBreadcrumb],
+        supplementaryInfo: [String: String] = [:]
     ) {
         self.page = page
         self.route = route
         self.network = network
         self.recentActions = recentActions
         self.recentRequests = recentRequests
+        self.supplementaryInfo = YXBBugContext.normalizedSupplementaryInfo(supplementaryInfo)
     }
 }

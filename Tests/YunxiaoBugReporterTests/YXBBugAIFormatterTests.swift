@@ -16,7 +16,8 @@ final class YXBBugAIFormatterTests: XCTestCase {
                 device: "iPhone17,1",
                 osVersion: "18.0",
                 network: "Wi-Fi"
-            )
+            ),
+            extra: ["登录状态": "已登录", "用户标识": "u_***1234"]
         )
 
         let data = try JSONEncoder().encode(request)
@@ -25,7 +26,7 @@ final class YXBBugAIFormatterTests: XCTestCase {
         XCTAssertEqual(body["severity"] as? String, "major")
         XCTAssertEqual(body["recent_actions"] as? [String], ["进入编辑页", "点击保存"])
         XCTAssertEqual((body["environment"] as? [String: Any])?["app_version"] as? String, "1.0.0")
-        XCTAssertNil(body["extra"])
+        XCTAssertEqual((body["extra"] as? [String: String])?["登录状态"], "已登录")
     }
 
     func testEndpointAppendsGeneratePath() throws {

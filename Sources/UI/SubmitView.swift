@@ -18,7 +18,7 @@ public struct SubmitView: View {
     ///   - applicationIdentifier: 宿主传入的应用标识。非空时会以 `【标识】` 拼接在
     ///     标题开头的 `【iOS】` 后；传 `nil` 或空白时省略。默认 `nil`。
     ///   - hostContext: 宿主在触发点（如 DoKit 长按）冻结的上下文快照（页面 / 路由 / 网络 /
-    ///     操作轨迹 / 最近网络请求），由宿主侧采集器 `snapshot()` 产出。SDK 只消费、不采集。
+    ///     操作轨迹 / 最近网络请求 / 自定义补充信息），由宿主侧采集器 `snapshot()` 产出。SDK 只消费、不采集。
     ///     传 `nil` 时回退到 `YXBConfigStore` 的实时注入值。默认 `nil`。
     ///   - onDismiss: 宿主提供的关闭回调。当 `SubmitView` 被包在 `UIHostingController`
     ///     经 UIKit `present` 弹出时，SwiftUI 的 `@Environment(\.dismiss)` 无法收起该页面，
@@ -477,6 +477,7 @@ public struct SubmitView: View {
             if let network = h.network, !network.isEmpty { ctx.network = network }
             if !h.recentActions.isEmpty { ctx.recentActions = h.recentActions }
             if !h.recentRequests.isEmpty { ctx.recentRequests = h.recentRequests }
+            if !h.supplementaryInfo.isEmpty { ctx.supplementaryInfo = h.supplementaryInfo }
         }
         return ctx
     }
@@ -543,7 +544,8 @@ public struct SubmitView: View {
                         device: context.deviceModel,
                         osVersion: context.osVersion,
                         network: context.network
-                    )
+                    ),
+                    extra: context.supplementaryInfo
                 )
             )
             applyAIReport(report)

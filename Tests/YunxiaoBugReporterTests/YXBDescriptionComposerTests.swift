@@ -78,4 +78,19 @@ final class YXBDescriptionComposerTests: XCTestCase {
         XCTAssertTrue(description.contains("请求体：空"))
         XCTAssertFalse(description.contains("请求体\n```text\n{\n  \n}"))
     }
+
+    func testSupplementaryInfoIsIncludedAndCannotInjectMarkdownStructure() {
+        let context = YXBBugContext(
+            supplementaryInfo: [
+                "登录状态": "已登录",
+                "用户标识\n## 伪造标题": "u_123\n```swift\nsecret"
+            ]
+        )
+
+        let description = YXBDescriptionComposer.compose(body: "无法保存", context: context)
+
+        XCTAssertTrue(description.contains("- 登录状态：已登录"))
+        XCTAssertTrue(description.contains("- 用户标识 ## 伪造标题：u_123 ```swift secret"))
+        XCTAssertFalse(description.contains("\n## 伪造标题"))
+    }
 }

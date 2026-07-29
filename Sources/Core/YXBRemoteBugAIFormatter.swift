@@ -43,16 +43,27 @@ public struct YXBBugAIGenerateRequest: Encodable, Sendable {
     public let page: Page?
     public let recentActions: [String]
     public let environment: Environment?
+    /// 宿主自定义、已脱敏的补充上下文；服务端以既有 `extra` 字段接收。
+    public let extra: [String: String]
 
     enum CodingKeys: String, CodingKey {
         case description
         case issueType = "issue_type"
         case severity, frequency, page
         case recentActions = "recent_actions"
-        case environment
+        case environment, extra
     }
 
-    public init(description: String, issueType: String?, severity: String?, frequency: String?, page: Page?, recentActions: [String], environment: Environment?) {
+    public init(
+        description: String,
+        issueType: String?,
+        severity: String?,
+        frequency: String?,
+        page: Page?,
+        recentActions: [String],
+        environment: Environment?,
+        extra: [String: String] = [:]
+    ) {
         self.description = description
         self.issueType = issueType
         self.severity = severity
@@ -60,6 +71,7 @@ public struct YXBBugAIGenerateRequest: Encodable, Sendable {
         self.page = page
         self.recentActions = recentActions
         self.environment = environment
+        self.extra = extra
     }
 }
 
